@@ -1,0 +1,84 @@
+import QRCode from 'qrcode';
+import QRCodeModel from '../models/QRCode.js';
+import Company from '../Models/Company.js';
+import Employee from '../models/Employee.js';
+import { v4 as uuidv4 } from 'uuid';
+
+// Helper to create QR payload and encode as Base64 JSON
+function createQRPayload({ companyId, companyName, employeeId }) {
+  const payload = {
+    companyId,
+    companyName,
+    employeeId: employeeId || null
+  };
+  return Buffer.from(JSON.stringify(payload)).toString('base64');
+}
+
+// Generate QR Controller
+export const generateQR = async (req, res) => {
+  try {
+    const { companyId, employeeId } = req.body;
+    const company = await Company.findById(companyId);
+    if (!company) return res.status(404).json({ error: 'Company not found' });
+
+    let qrType, qrId, qrDoc, employee = null;
+
+    if (employeeId) {
+      employee = await Employee.findById(employeeId);
+      if (!employee) return res.status(404).json({ error: 'Employee not found' });
+      qrType = employee.employeeType;
+      if (qrType === 'permanent') {
+        // Unique QR per permanent employee
+        qrId = uuidv4();
+        qrDoc = await QRCodeModel.create({
+          qrId,
+          companyId: company._id,
+          companyName: company.companyName,
+          employeeId: employee._id,
+          qrType,
+        });
+      } else {
+        // Shared QR for manpower: one per company
+        qrType = 'manpower';
+        qrDoc = await QRCodeModel.findOne({ companyId: company._id, qrType });
+        if (!qrDoc) {
+          qrId = uuidv4();
+          qrDoc = await QRCodeModel.create({
+            qrId,
+            companyId: company._id,
+            companyName: company.companyName,
+            employeeId: null,
+            qrType,
+          });
+        }
+      }
+    } else {
+      // Manpower QR (shared per company)
+      qrType = 'manpower';
+      qrDoc = await QRCodeModel.findOne({ companyId: company._id, qrType });
+      if (!qrDoc) {
+        qrId = uuidv4();
+        qrDoc = await QRCodeModel.create({
+          qrId,
+          companyId: company._id,
+          companyName: company.companyName,
+          employeeId: null,
+          qrType,
+        });
+      }
+    }
+
+    // Prepare payload
+    const payload = createQRPayload({
+      companyId: company._id,
+      companyName: company.companyName,
+      employeeId: employee ? employee._id : null
+    });
+
+    // Generate QR image
+    const qrImage = await QRCode.toDataURL(payload);
+    res.json({ qrId: qrDoc.qrId, qrImage });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
