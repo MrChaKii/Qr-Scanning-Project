@@ -40,6 +40,27 @@ All routes below require:
   }
   ```
 
+
+
+
+#### Create User
+- **Endpoint**: `POST /users`
+- **Description**: Creates a new user account
+- **Authentication**: Required (Admin only)
+- **Request Body**:
+  ```json
+  {
+    "username": "newuser",
+    "password": "password123",
+    "name": "New User",
+    "role": "admin",
+    "email": "newuser@example.com",
+    "contactNumber": "1234567890",
+    "assignedProcesses": []
+  }
+  ```
+- **Response**: User object
+
 #### Get All Users
 - **Endpoint**: `GET /users`
 - **Description**: Retrieves a list of all users
@@ -50,7 +71,7 @@ All routes below require:
 - **Endpoint**: `PUT /users/:id`
 - **Description**: Updates an existing user's information
 - **Authentication**: Required (Admin only)
-- **URL Parameters**: 
+- **URL Parameters**:
   - `id`: User ID
 - **Request Body**:
   ```json
@@ -59,13 +80,15 @@ All routes below require:
     "role": "admin"
   }
   ```
+- **Response**: Updated user object
 
 #### Delete User
 - **Endpoint**: `DELETE /users/:id`
-- **Description**: Deletes a user account
+- **Description**: Deletes (deactivates) a user account
 - **Authentication**: Required (Admin only)
-- **URL Parameters**: 
+- **URL Parameters**:
   - `id`: User ID
+- **Response**: Success message
 
 ---
 

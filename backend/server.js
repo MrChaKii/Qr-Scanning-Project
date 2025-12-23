@@ -5,7 +5,9 @@ import connectDB from './config/database.js';
 
 // Import routes
 import authRoutes from './routes/authRoutes.js';
-// import employeeRoutes from './routes/employeeRoutes.js';
+import employeeRoutes from './routes/employeeRoutes.js';
+import companyRoutes from './Routes/companyRoutes.js';
+import qrRoutes from './routes/qrRoutes.js';
 
 dotenv.config();
 
@@ -21,7 +23,9 @@ connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
-// app.use('/api/employees', employeeRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/companies', companyRoutes);
+app.use('/api/qr', qrRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
