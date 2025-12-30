@@ -8,6 +8,10 @@ import authRoutes from './routes/authRoutes.js';
 import employeeRoutes from './routes/employeeRoutes.js';
 import companyRoutes from './Routes/companyRoutes.js';
 import qrRoutes from './routes/qrRoutes.js';
+import attendanceRoutes from './routes/attendanceRoutes.js';
+import workSessionRoutes from './routes/workSessionRoutes.js';
+import breakSessionRoutes from './routes/breakSessionRoutes.js';
+import scanRoutes from './routes/scanRoutes.js';
 
 dotenv.config();
 
@@ -26,6 +30,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/qr', qrRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/work-session', workSessionRoutes);
+app.use('/api/break-session', breakSessionRoutes);
+app.use('/api/scan', scanRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
