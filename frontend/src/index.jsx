@@ -1,17 +1,15 @@
-import React from "react";
-import { StrictMode } from 'react'
+import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { App } from './App'
 import './index.css'
-import 'react-toastify/dist/ReactToastify.css'
-import App from './App'
-import { AuthProvider } from './context/AuthContext';
-import { Toaster } from 'react-hot-toast';
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <AuthProvider>
+const container = document.getElementById('root')
+
+if (container) {
+  const root = createRoot(container)
+  root.render(
+    <React.StrictMode>
       <App />
-      <Toaster position="top-right" />
-    </AuthProvider>
-  </StrictMode>,
-)
+    </React.StrictMode>
+  )
+}
