@@ -7,6 +7,10 @@ export function Table({
   isLoading = false,
   emptyMessage = 'No data available',
 }) {
+  // Defensive: ensure data and columns are always arrays
+  const safeData = Array.isArray(data) ? data : [];
+  const safeColumns = Array.isArray(columns) ? columns : [];
+
   if (isLoading) {
     return (
       <div className="w-full bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -29,7 +33,7 @@ export function Table({
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-100 border-b border-slate-200">
-              {columns.map((col, index) => (
+              {safeColumns.map((col, index) => (
                 <th
                   key={index}
                   className={`px-6 py-3 text-xs font-semibold text-slate-700 uppercase tracking-wider ${
@@ -43,13 +47,13 @@ export function Table({
           </thead>
 
           <tbody className="divide-y divide-slate-200">
-            {data.length > 0 ? (
-              data.map((item) => (
+            {safeData.length > 0 ? (
+              safeData.map((item) => (
                 <tr
                   key={keyExtractor(item)}
                   className="hover:bg-slate-50 transition-colors"
                 >
-                  {columns.map((col, index) => (
+                  {safeColumns.map((col, index) => (
                     <td
                       key={index}
                       className={`px-6 py-4 text-sm text-slate-900 ${
@@ -66,7 +70,7 @@ export function Table({
             ) : (
               <tr>
                 <td
-                  colSpan={columns.length}
+                  colSpan={safeColumns.length}
                   className="px-6 py-12 text-center text-slate-500"
                 >
                   {emptyMessage}

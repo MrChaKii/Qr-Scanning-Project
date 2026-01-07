@@ -12,7 +12,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 // Pages
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
-// import { CompaniesPage } from './pages/CompaniesPage'
+import { CompaniesPage } from './pages/CompaniesPage'
 // import { EmployeesPage } from './pages/EmployeesPage'
 // import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
 // import { AttendancePage } from './pages/AttendancePage'
@@ -46,23 +46,23 @@ export function App() {
               }
             />
 
-            {/* <Route
+            <Route
               path="/companies"
               element={
                 <ProtectedRoute>
                   <CompaniesPage />
                 </ProtectedRoute>
               }
-            /> */}
+            />
 
-            {/* <Route
+            <Route
               path="/companies/:id"
               element={
                 <ProtectedRoute>
                   <CompaniesPage />
                 </ProtectedRoute>
               }
-            /> */}
+            />
 
             {/* <Route
               path="/employees"
