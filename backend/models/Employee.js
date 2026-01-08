@@ -41,7 +41,8 @@ const employeeSchema = new mongoose.Schema({
   },
   isActive: {
     type: Boolean,
-    required: true
+    required: true,
+    default: true
   },
   createdAt: {
     type: Date,

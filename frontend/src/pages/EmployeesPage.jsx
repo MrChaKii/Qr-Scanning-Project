@@ -1,0 +1,208 @@
+import React, { useEffect, useState } from 'react'
+import { DashboardLayout } from '../components/layout/DashboardLayout'
+import { Table } from '../components/ui/Table'
+import { Button } from '../components/UI/Button'
+import { Input } from '../components/ui/Input'
+import { Badge } from '../components/UI/Badge'
+import { Modal } from '../components/ui/Modal'
+import { EmployeeForm } from '../components/forms/EmployeeForm'
+import { getEmployees, deleteEmployee } from '../services/employee.service'
+import { Plus, Search, Edit, Trash2, QrCode } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useToast } from '../hooks/useToast'
+
+export const EmployeesPage = () => {
+  const [employees, setEmployees] = useState([])
+  const [filteredEmployees, setFilteredEmployees] = useState([])
+  const [search, setSearch] = useState('')
+  const [filterType, setFilterType] = useState('all')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingEmployee, setEditingEmployee] = useState(undefined)
+
+  const navigate = useNavigate()
+  const { showToast } = useToast()
+
+  const fetchEmployees = async () => {
+    setIsLoading(true)
+    try {
+      const data = await getEmployees()
+      setEmployees(data)
+    } catch (error) {
+      console.error('Failed to fetch employees', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchEmployees()
+  }, [])
+
+  useEffect(() => {
+    let result = employees;
+    if (filterType !== 'all') {
+      result = result.filter((e) => e.employeeType === filterType);
+    }
+    if (search) {
+      const lowerSearch = search.toLowerCase();
+      result = result.filter(
+        (e) =>
+          (e.name && e.name.toLowerCase().includes(lowerSearch)) ||
+          (e.employeeId && e.employeeId.toLowerCase().includes(lowerSearch))
+      );
+    }
+    setFilteredEmployees(result);
+  }, [search, filterType, employees]);
+
+  const handleEdit = (employee) => {
+    setEditingEmployee(employee)
+    setIsModalOpen(true)
+  }
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this employee?')) {
+      try {
+        const res = await deleteEmployee(id);
+        showToast(res.message || 'Employee deactivated successfully', 'success');
+        fetchEmployees();
+      } catch (error) {
+        showToast('Failed to delete employee', 'error');
+      }
+    }
+  }
+
+  const handleAdd = () => {
+    setEditingEmployee(undefined)
+    setIsModalOpen(true)
+  }
+
+  const handleSuccess = () => {
+    setIsModalOpen(false)
+    fetchEmployees()
+  }
+
+  const columns = [
+    {
+      header: 'Employee ID',
+      accessor: 'employeeId',
+    },
+    {
+      header: 'Name',
+      accessor: 'name',
+    },
+    {
+      header: 'Type',
+      accessor: (item) => (
+        <Badge variant={item.employeeType === 'permanent' ? 'info' : 'warning'}>
+          {item.employeeType?.toUpperCase()}
+        </Badge>
+      ),
+    },
+    {
+      header: 'Company',
+      accessor: (item) => item.companyId?.companyName || item.companyId?.name || '-',
+    },
+    {
+      header: 'Active',
+      accessor: (item) => (item.isActive ? 'Yes' : 'No'),
+    },
+    {
+      header: 'Created At',
+      accessor: (item) => item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-',
+    },
+    {
+      header: 'Actions',
+      accessor: (item) => (
+        <div className="flex space-x-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate(`/employees/${item._id || item.id}`)}
+          >
+            <QrCode className="w-4 h-4" />
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => handleEdit(item)}
+          >
+            <Edit className="w-4 h-4" />
+          </Button>
+
+          <Button
+            variant="danger"
+            size="sm"
+              onClick={() => handleDelete(item._id)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <DashboardLayout>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">
+          Employees
+        </h1>
+
+        <Button onClick={handleAdd}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add Employee
+        </Button>
+      </div>
+
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6 flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex space-x-2">
+          {['all', 'permanent', 'manpower'].map((type) => (
+            <button
+              key={type}
+              onClick={() => setFilterType(type)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                filterType === type
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+          <Input
+            placeholder="Search employees..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
+      <Table
+        data={filteredEmployees}
+        columns={columns}
+        keyExtractor={(item) => item._id || item.id}
+        isLoading={isLoading}
+        emptyMessage="No employees found"
+      />
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+      >
+        <EmployeeForm
+          initialData={editingEmployee}
+          onSuccess={handleSuccess}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
+    </DashboardLayout>
+  )
+}
