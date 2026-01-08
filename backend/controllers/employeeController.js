@@ -1,5 +1,5 @@
 import Employee from "../models/Employee.js";
-import Company from "../Models/Company.js";
+import Company from "../models/Company.js";
 
 // Create employee
 export const createEmployee = async (req, res) => {
@@ -268,17 +268,20 @@ export const deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const employee = await Employee.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
-    );
+    const employee = await Employee.findByIdAndDelete(id);
+
+    // const employee = await Employee.findByIdAndUpdate(
+    //   id,
+    //   { isActive: false },
+    //   { new: true }
+    // );
 
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    res.json({ message: "Employee deactivated successfully" });
+    // res.json({ message: "Employee deactivated successfully" });
+    res.json({ message: "Employee deleted successfully" });
   } catch (error) {
     res.status(500).json({
       message: "Server error",

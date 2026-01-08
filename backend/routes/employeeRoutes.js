@@ -5,7 +5,7 @@ import {
   getEmployeeById,
   updateEmployee,
   deleteEmployee
-} from '../controllers/employeeController.js';
+} from '../Controllers/employeeController.js';
 import { auth, authorize } from '../middleware/auth.js';
 
 const router = express.Router();

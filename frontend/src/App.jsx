@@ -13,8 +13,8 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { CompaniesPage } from './pages/CompaniesPage'
-// import { EmployeesPage } from './pages/EmployeesPage'
-// import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
+import { EmployeesPage } from './pages/EmployeesPage'
+import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
 // import { AttendancePage } from './pages/AttendancePage'
 // import { WorkSessionsPage } from './pages/WorkSessionsPage'
 // import { BreaksPage } from './pages/BreaksPage'
@@ -64,23 +64,23 @@ export function App() {
               }
             />
 
-            {/* <Route
+            <Route
               path="/employees"
               element={
                 <ProtectedRoute>
                   <EmployeesPage />
                 </ProtectedRoute>
               }
-            /> */}
+            />
 
-            {/* <Route
+            <Route
               path="/employees/:id"
               element={
                 <ProtectedRoute>
                   <EmployeeDetailPage />
                 </ProtectedRoute>
               }
-            /> */}
+            />
 
             {/* <Route
               path="/attendance"
