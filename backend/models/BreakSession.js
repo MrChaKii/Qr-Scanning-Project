@@ -4,15 +4,15 @@ const BreakSessionSchema = new mongoose.Schema({
   // Break sessions are now global, not per employee or QR
   breakType: {
     type: String,
-    enum: ['LUNCH', 'TEA', 'CLOTHES'],
+    enum: ['BREAKFAST', 'LUNCH', 'TEA', 'CLOTHES'],
     required: true
   },
   startTime: {
-    type: Date,
+    type: String,
     required: true
   },
   endTime: {
-    type: Date
+    type: String
   }
 });
 

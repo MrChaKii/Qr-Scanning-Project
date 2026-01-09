@@ -17,7 +17,7 @@ import { EmployeesPage } from './pages/EmployeesPage'
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
 // import { AttendancePage } from './pages/AttendancePage'
 // import { WorkSessionsPage } from './pages/WorkSessionsPage'
-// import { BreaksPage } from './pages/BreaksPage'
+import { BreaksPage } from './pages/BreaksPage'
 // import { AnalyticsPage } from './pages/AnalyticsPage'
 
 export function App() {
@@ -100,14 +100,14 @@ export function App() {
               }
             /> */}
 
-            {/* <Route
+            <Route
               path="/breaks"
               element={
                 <ProtectedRoute>
                   <BreaksPage />
                 </ProtectedRoute>
               }
-            /> */}
+            />
 {/* 
             <Route
               path="/analytics"

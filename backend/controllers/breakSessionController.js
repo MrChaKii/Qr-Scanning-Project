@@ -13,8 +13,8 @@ export const createBreak = async (req, res) => {
     }
     const breakSession = new BreakSession({
       breakType,
-      startTime: startTime ? new Date(startTime) : new Date(),
-      ...(endTime && { endTime: new Date(endTime) })
+      startTime: startTime,
+      ...(endTime && { endTime })
     });
     await breakSession.save();
     res.status(201).json({
