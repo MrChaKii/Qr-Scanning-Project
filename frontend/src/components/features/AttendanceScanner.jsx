@@ -1,0 +1,205 @@
+
+import React, { useState, useRef } from 'react'
+import { Button } from '../UI/Button'
+import { Input } from '../ui/Input'
+import { QrCode, CheckCircle, XCircle } from 'lucide-react'
+import { scanAttendance } from '../../services/attendance.service'
+import { useToast } from '../../hooks/useToast'
+
+// Dynamically load html5-qrcode script if not present
+function loadHtml5QrcodeScript(cb) {
+  if (window.Html5Qrcode) {
+    cb();
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js';
+  script.onload = cb;
+  document.body.appendChild(script);
+}
+
+
+export const AttendanceScanner = ({ onScanSuccess }) => {
+  const [employeeId, setEmployeeId] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [lastScan, setLastScan] = useState(null)
+  const [showCamera, setShowCamera] = useState(false)
+  const [isScanning, setIsScanning] = useState(false)
+  const cameraRef = useRef(null)
+  const html5QrcodeScannerRef = useRef(null)
+
+  const { showToast } = useToast()
+
+  const handleScan = async (type) => {
+    if (!employeeId.trim()) {
+      showToast('Please enter an Employee ID', 'warning')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      // Extract ID if it's in format EMP-{id}, otherwise keep as-is
+      const cleanId = employeeId.trim()
+      console.log('Scanning attendance for:', cleanId, 'type:', type)
+      
+      const result = await scanAttendance(cleanId, type)
+
+      setLastScan(result)
+      showToast(`Successfully checked ${type}`, 'success')
+      setEmployeeId('')
+
+      if (onScanSuccess) {
+        onScanSuccess()
+      }
+    } catch (error) {
+      console.error('Attendance scan error:', error)
+      console.error('Error response:', error?.response)
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to scan attendance'
+      console.error('Final error message:', errorMessage)
+      showToast(errorMessage, 'error')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Camera QR scan logic
+  const startCameraScan = () => {
+    setShowCamera(true)
+    setIsScanning(true)
+    loadHtml5QrcodeScript(() => {
+      if (!window.Html5Qrcode) {
+        showToast('QR scanner failed to load', 'error')
+        setIsScanning(false)
+        return
+      }
+      if (html5QrcodeScannerRef.current) {
+        html5QrcodeScannerRef.current.stop().catch(()=>{})
+        html5QrcodeScannerRef.current = null
+      }
+      const qr = new window.Html5Qrcode(cameraRef.current.id)
+      html5QrcodeScannerRef.current = qr
+      qr.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: 200 },
+        (decodedText) => {
+          setEmployeeId(decodedText)
+          setShowCamera(false)
+          setIsScanning(false)
+          qr.stop().catch(()=>{})
+          html5QrcodeScannerRef.current = null
+          showToast('QR code scanned!', 'success')
+        },
+        (err) => {}
+      ).catch(() => {
+        setIsScanning(false)
+        setShowCamera(false)
+        showToast('Unable to access camera', 'error')
+      })
+    })
+  }
+
+  const stopCameraScan = () => {
+    setShowCamera(false)
+    setIsScanning(false)
+    if (html5QrcodeScannerRef.current) {
+      html5QrcodeScannerRef.current.stop().catch(()=>{})
+      html5QrcodeScannerRef.current = null
+    }
+  }
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+      <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+        <QrCode className="w-5 h-5 mr-2 text-blue-600" />
+        Attendance Scanner
+      </h3>
+
+      <div className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Scan QR Code or enter Employee ID"
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            className="text-lg font-mono"
+            autoFocus
+          />
+          <Button
+            variant="secondary"
+            onClick={startCameraScan}
+            disabled={isScanning}
+            className="bg-blue-100 hover:bg-blue-200 text-blue-700"
+            type="button"
+          >
+            <QrCode className="w-5 h-5 mr-1 inline-block" />
+            Camera
+          </Button>
+        </div>
+
+        {showCamera && (
+          <div className="mt-2 mb-2">
+            <div ref={cameraRef} id="qr-reader" style={{ width: 260, margin: '0 auto' }} />
+            <Button
+              variant="secondary"
+              onClick={stopCameraScan}
+              className="mt-2 bg-gray-200 hover:bg-gray-300 text-gray-700"
+              type="button"
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-4">
+          <Button
+            variant="primary"
+            onClick={() => handleScan('IN')}
+            isLoading={isLoading}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            CHECK IN
+          </Button>
+
+          <Button
+            variant="primary"
+            onClick={() => handleScan('OUT')}
+            isLoading={isLoading}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            CHECK OUT
+          </Button>
+        </div>
+
+        {lastScan && (
+          <div
+            className={`mt-4 p-4 rounded-md border ${
+              lastScan.scanType === 'IN'
+                ? 'bg-green-50 border-green-200'
+                : 'bg-amber-50 border-amber-200'
+            }`}
+          >
+            <div className="flex items-center">
+              {lastScan.scanType === 'IN' ? (
+                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+              ) : (
+                <XCircle className="w-5 h-5 text-amber-600 mr-2" />
+              )}
+
+              <div>
+                <p className="font-medium text-slate-900">
+                  Last Scan:{' '}
+                  <span className="font-bold">
+                    {lastScan.scanType}
+                  </span>
+                </p>
+                <p className="text-sm text-slate-600">
+                  {new Date(lastScan.scanTime).toLocaleTimeString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

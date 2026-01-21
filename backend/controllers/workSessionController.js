@@ -1,7 +1,7 @@
 import WorkSession from '../models/WorkSession.js';
 import QRCode from '../models/QRCode.js';
 import Employee from '../models/Employee.js';
-import Company from '../Models/Company.js';
+import Company from '../models/Company.js';
 
 // GET /api/work-session/all
 export const getAllSessions = async (req, res) => {

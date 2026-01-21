@@ -1,18 +1,32 @@
 import AttendanceLog from '../models/AttendanceLog.js';
 import QRCode from '../models/QRCode.js';
 import Employee from '../models/Employee.js';
-import Company from '../Models/Company.js';
+import Company from '../models/Company.js';
 
 // POST /api/attendance/scan
+// POST /api/attendance/scan
 export const scanAtSecurity = async (req, res) => {
+  console.log('🔍 scanAtSecurity called with:', req.body);
   try {
-    const { qrId, scanType } = req.body;
+    const { qrId, scanType, context } = req.body;
+    
     if (!qrId) {
       return res.status(400).json({ message: 'qrId is required' });
     }
 
-    // Find QR code and related info
-    const qr = await QRCode.findById(qrId).populate('employeeId companyId');
+    // Validate context if it's required
+    if (!context) {
+      return res.status(400).json({ message: 'context is required' });
+    }
+
+    // Try to find QRCode by _id (MongoDB ObjectId), if fails, try by qrId field (UUID)
+    let qr = null;
+    if (/^[a-fA-F0-9]{24}$/.test(qrId)) {
+      qr = await QRCode.findById(qrId).populate('employeeId companyId');
+    }
+    if (!qr) {
+      qr = await QRCode.findOne({ qrId: qrId }).populate('employeeId companyId');
+    }
     if (!qr) {
       return res.status(404).json({ message: 'QR code not found' });
     }
@@ -26,13 +40,14 @@ export const scanAtSecurity = async (req, res) => {
     // Accept scanType from request, default to alternating if not provided
     let type = scanType;
     if (!type) {
-      // Find all security scans for today
+      // Find all scans for today with this context
       const logs = await AttendanceLog.find({
-        qrId,
+        qrId: qr._id,  // Use QRCode's MongoDB _id, not the UUID
         companyId,
         workDate,
-        scanLocation: 'SECURITY'
+        scanLocation: context // ✅ Use context instead of hardcoded 'SECURITY'
       }).sort({ scanTime: 1 });
+      
       if (logs.length === 0) {
         type = 'IN';
       } else {
@@ -43,11 +58,11 @@ export const scanAtSecurity = async (req, res) => {
     }
 
     const attendance = new AttendanceLog({
-      qrId,
+      qrId: qr._id,  // Use QRCode's MongoDB _id, not the UUID
       companyId,
       employeeId,
       scanType: type,
-      scanLocation: 'SECURITY',
+      scanLocation: context, // ✅ Use context instead of hardcoded 'SECURITY'
       scanTime: now,
       workDate
     });
@@ -55,7 +70,7 @@ export const scanAtSecurity = async (req, res) => {
     await attendance.save();
 
     res.status(201).json({
-      message: `Attendance ${type} recorded`,
+      message: `Attendance ${type} recorded at ${context}`,
       attendance
     });
   } catch (err) {
@@ -89,9 +104,52 @@ export const getAttendanceSummary = async (req, res) => {
       lastOut
     });
   } catch (err) {
-    res.status(500).json({
-      message: 'Server error',
-      error: err.message
-    });
+    res.status(500).json({ message: 'Error fetching summary', error: err.message });
   }
 };
+
+// GET /api/attendance/daily-summary?date=YYYY-MM-DD
+export const getDailySummary = async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ message: 'date is required' });
+    }
+    // Find all attendance logs for the date
+    const logs = await AttendanceLog.find({ workDate: date, scanLocation: 'SECURITY' }).populate('employeeId companyId');
+    // Group by employee
+    const summary = {};
+    logs.forEach(log => {
+      const empId = log.employeeId?._id?.toString() || (log.employeeId && log.employeeId.toString()) || 'unknown';
+      if (!summary[empId]) {
+        summary[empId] = {
+          employee: log.employeeId,
+          company: log.companyId,
+          logs: []
+        };
+      }
+      summary[empId].logs.push(log);
+    });
+    // For each employee, get first IN and last OUT
+    const result = Object.values(summary).map(({ employee, company, logs }) => {
+      const firstIn = logs.find(l => l.scanType === 'IN');
+      const lastOut = [...logs].reverse().find(l => l.scanType === 'OUT');
+      return {
+        employee,
+        company,
+        firstIn,
+        lastOut
+      };
+    });
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching daily summary', error: err.message });
+  }
+};
+//   } catch (err) {
+//     res.status(500).json({
+//       message: 'Server error',
+//       error: err.message
+//     });
+//   }
+// };

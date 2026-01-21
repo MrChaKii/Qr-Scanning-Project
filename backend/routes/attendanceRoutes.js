@@ -1,6 +1,5 @@
 import express from 'express';
-import { scanAtSecurity } from '../controllers/attendanceController.js';
-import { getAttendanceSummary } from '../controllers/attendanceController.js';
+import { scanAtSecurity, getAttendanceSummary, getDailySummary } from '../controllers/attendanceController.js';
 
 const router = express.Router();
 
@@ -9,5 +8,8 @@ router.post('/scan', scanAtSecurity);
 
 // GET /api/attendance/summary?qrId=...&date=YYYY-MM-DD
 router.get('/summary', getAttendanceSummary);
+
+// GET /api/attendance/daily-summary?date=YYYY-MM-DD
+router.get('/daily-summary', getDailySummary);
 
 export default router;
