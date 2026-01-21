@@ -7,15 +7,21 @@ export const createEmployee = async (req, res) => {
     const { employeeId, name, employeeType, companyId, isActive } = req.body;
 
     // For permanent employees, employeeId is required; for manpower, must be empty/null
-    if (employeeType === "permanent" && (!employeeId || employeeId === "")) {
+    // if (employeeType === "permanent" && (!employeeId || employeeId === "")) {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "Permanent employees must have an employeeId." });
+    // }
+    // if (employeeType === "manpower" && employeeId) {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "Manpower employees must not have an employeeId." });
+    // }
+
+    if (!employeeId || employeeId === "") {
       return res
         .status(400)
-        .json({ message: "Permanent employees must have an employeeId." });
-    }
-    if (employeeType === "manpower" && employeeId) {
-      return res
-        .status(400)
-        .json({ message: "Manpower employees must not have an employeeId." });
+        .json({ message: "Employees must have an employeeId." });
     }
 
     // Only check for duplicate employeeId if provided (permanent)
@@ -170,12 +176,13 @@ export const createEmployee = async (req, res) => {
 // Get all employees
 export const getAllEmployees = async (req, res) => {
   try {
-    const { employeeType, isActive, companyId } = req.query;
+    const { employeeType, isActive, companyId, employeeId } = req.query;
 
     const query = {};
     if (employeeType) query.employeeType = employeeType;
     if (isActive !== undefined) query.isActive = isActive === "true";
     if (companyId) query.companyId = companyId;
+    if (employeeId) query.employeeId = employeeId;
 
     const employees = await Employee.find(query)
       .populate("companyId")
@@ -218,18 +225,24 @@ export const updateEmployee = async (req, res) => {
     const updates = req.body;
 
     // Prevent updating to invalid employeeId/employeeType combinations
-    if (
-      updates.employeeType === "permanent" &&
-      (!updates.employeeId || updates.employeeId === "")
-    ) {
+    // if (
+    //   updates.employeeType === "permanent" &&
+    //   (!updates.employeeId || updates.employeeId === "")
+    // ) {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "Permanent employees must have an employeeId." });
+    // }
+    // if (updates.employeeType === "manpower" && updates.employeeId) {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "Manpower employees must not have an employeeId." });
+    // }
+
+    if (!updates.employeeId || updates.employeeId === "") {
       return res
         .status(400)
-        .json({ message: "Permanent employees must have an employeeId." });
-    }
-    if (updates.employeeType === "manpower" && updates.employeeId) {
-      return res
-        .status(400)
-        .json({ message: "Manpower employees must not have an employeeId." });
+        .json({ message: "Employees must have an employeeId." });
     }
 
     // Only check for duplicate employeeId if provided (permanent)

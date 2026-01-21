@@ -6,7 +6,7 @@ import connectDB from './config/database.js';
 // Import routes
 import authRoutes from './routes/authRoutes.js';
 import employeeRoutes from './routes/employeeRoutes.js';
-import companyRoutes from './Routes/companyRoutes.js';
+import companyRoutes from './routes/companyRoutes.js';
 import qrRoutes from './routes/qrRoutes.js';
 import attendanceRoutes from './routes/attendanceRoutes.js';
 import workSessionRoutes from './routes/workSessionRoutes.js';
@@ -41,6 +41,11 @@ app.use('/api/report',adminRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
+
+// app.use(cors({
+//   origin: 'https://web-example.ngrok-free.dev',
+//   credentials: true,
+// }));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -4,8 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     tailwindcss(),
-  ]
+  ],
+
   // server: {
-  //   port: 8081, // Set your desired port here
+  //   allowedHosts: [
+  //     'undemonstrational-viki-reminiscently.ngrok-free.dev',
+  //   ],
   // },
+  server: {
+    // port: 8081, // Set your desired port here
+  },
 })

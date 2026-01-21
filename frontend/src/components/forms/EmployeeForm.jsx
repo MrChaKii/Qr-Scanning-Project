@@ -51,13 +51,18 @@ export const EmployeeForm = ({
       newErrors.employeeType = 'Employee type is required';
     }
     // employeeId validation
-    if (formData.employeeType === 'permanent') {
+    // if (formData.employeeType === 'permanent') {
+    //   if (!formData.employeeId || formData.employeeId.length < 2) {
+    //     newErrors.employeeId = 'Permanent employees must have an Employee ID';
+    //   }
+    // } else if (formData.employeeType === 'manpower') {
+    //   if (formData.employeeId) {
+    //     newErrors.employeeId = 'Manpower employees must not have an Employee ID';
+    //   }
+    // }
+    if (formData.employeeType === 'permanent' || formData.employeeType === 'manpower') {
       if (!formData.employeeId || formData.employeeId.length < 2) {
-        newErrors.employeeId = 'Permanent employees must have an Employee ID';
-      }
-    } else if (formData.employeeType === 'manpower') {
-      if (formData.employeeId) {
-        newErrors.employeeId = 'Manpower employees must not have an Employee ID';
+        newErrors.employeeId = 'Employees must have an Employee ID';
       }
     }
     setErrors(newErrors);
@@ -100,8 +105,8 @@ export const EmployeeForm = ({
         value={formData.employeeId}
         onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
         error={errors.employeeId}
-        disabled={formData.employeeType === 'manpower'}
-        className={formData.employeeType === 'manpower' ? 'bg-slate-100' : ''}
+        // disabled={formData.employeeType === 'manpower'}
+        // className={formData.employeeType === 'manpower' ? 'bg-slate-100' : ''}
       />
       <Input
         label="Name"
@@ -127,7 +132,7 @@ export const EmployeeForm = ({
           value={formData.companyId}
           onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
           options={filteredCompanies.map((c) => ({
-            value: c.companyId || c._id || c.id,
+            value: c._id || c.id,
             label: c.companyName || c.name,
           }))}
           error={errors.companyId}

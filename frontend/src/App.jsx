@@ -15,8 +15,8 @@ import { DashboardPage } from './pages/DashboardPage'
 import { CompaniesPage } from './pages/CompaniesPage'
 import { EmployeesPage } from './pages/EmployeesPage'
 import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
-// import { AttendancePage } from './pages/AttendancePage'
-// import { WorkSessionsPage } from './pages/WorkSessionsPage'
+import { AttendancePage } from './pages/AttendancePage'
+import { WorkSessionsPage } from './pages/WorkSessionsPage'
 import { BreaksPage } from './pages/BreaksPage'
 // import { AnalyticsPage } from './pages/AnalyticsPage'
 
@@ -82,23 +82,23 @@ export function App() {
               }
             />
 
-            {/* <Route
+            <Route
               path="/attendance"
               element={
                 <ProtectedRoute>
                   <AttendancePage />
                 </ProtectedRoute>
               }
-            /> */}
+            />
 
-            {/* <Route
+            <Route
               path="/work-sessions"
               element={
                 <ProtectedRoute>
                   <WorkSessionsPage />
                 </ProtectedRoute>
               }
-            /> */}
+            />
 
             <Route
               path="/breaks"

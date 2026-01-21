@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 import QRCodeModel from '../models/QRCode.js';
-import Company from '../Models/Company.js';
+import Company from '../models/Company.js';
 import Employee from '../models/Employee.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -78,6 +78,38 @@ export const generateQR = async (req, res) => {
     // Generate QR image
     const qrImage = await QRCode.toDataURL(payload);
     res.json({ qrId: qrDoc.qrId, qrImage });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get QR Code for an employee (for scanning purposes)
+export const getQRForEmployee = async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    
+    const employee = await Employee.findById(employeeId).populate('companyId');
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    let qrDoc;
+    if (employee.employeeType === 'permanent') {
+      // Find permanent employee's unique QR
+      qrDoc = await QRCodeModel.findOne({ employeeId: employee._id });
+    } else {
+      // Find shared manpower QR for the company
+      qrDoc = await QRCodeModel.findOne({ 
+        companyId: employee.companyId._id, 
+        qrType: 'manpower' 
+      });
+    }
+
+    if (!qrDoc) {
+      return res.status(404).json({ error: 'QR code not found for this employee' });
+    }
+
+    res.json({ qrId: qrDoc.qrId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -2,7 +2,7 @@
 import AttendanceLog from '../models/AttendanceLog.js';
 import WorkSession from '../models/WorkSession.js';
 import Employee from '../models/Employee.js';
-import Company from '../Models/Company.js';
+import Company from '../models/Company.js';
 
 // 1. Daily attendance per employee
 export const dailyAttendancePerEmployee = async (req, res) => {
