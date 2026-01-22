@@ -9,6 +9,7 @@ import {
   Coffee,
   BarChart3,
   LogOut,
+  Cpu,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -30,6 +31,11 @@ export const Sidebar = () => {
       to: '/employees',
       icon: Users,
       label: 'Employees',
+    },
+    {
+      to: '/processes',
+      icon: Cpu,
+      label: 'Processes',
     },
     {
       to: '/attendance',

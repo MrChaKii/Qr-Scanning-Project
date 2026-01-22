@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react'
-import { DashboardLayout } from '../components/layout/DashboardLayout'
-import { Table } from '../components/ui/Table'
-import { Button } from '../components/UI/Button'
-import { Badge } from '../components/UI/Badge'
-import { Modal } from '../components/ui/Modal'
-import { WorkSessionForm } from '../components/forms/WorkSessionForm'
-import { SessionTimer } from '../components/features/SessionTimer'
+import { DashboardLayout } from '../../components/layout/DashboardLayout'
+import { Table } from '../../components/ui/Table'
+import { Button } from '../../components/UI/Button'
+import { Badge } from '../../components/UI/Badge'
+import { Modal } from '../../components/ui/Modal'
+import { WorkSessionForm } from '../../components/forms/WorkSessionForm'
+import { SessionTimer } from '../../components/features/SessionTimer'
 import {
   getWorkSessions,
   stopWorkSession,
-} from '../services/workSession.service'
+} from '../../services/workSession.service'
 import { Plus, Play, Square } from 'lucide-react'
-import { useToast } from '../hooks/useToast'
+import { useToast } from '../../hooks/useToast'
 
 export const WorkSessionsPage = () => {
   const [sessions, setSessions] = useState([])
