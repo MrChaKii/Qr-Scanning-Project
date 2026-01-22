@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { DashboardLayout } from '../components/layout/DashboardLayout'
-import { AttendanceScanner } from '../components/features/AttendanceScanner'
-import { Table } from '../components/ui/Table'
-import { Input } from '../components/ui/Input'
-import { Badge } from '../components/UI/Badge'
-import { getDailySummary } from '../services/attendance.service'
+import { DashboardLayout } from '../../components/layout/DashboardLayout'
+import { AttendanceScanner } from '../../components/features/AttendanceScanner'
+import { Table } from '../../components/ui/Table'
+import { Input } from '../../components/ui/Input'
+import { Badge } from '../../components/ui/Badge'
+import { getDailySummary } from '../../services/attendance.service'
 
 export const AttendancePage = () => {
   const [date, setDate] = useState(

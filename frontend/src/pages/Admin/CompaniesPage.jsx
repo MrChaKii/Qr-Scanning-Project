@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { DashboardLayout } from '../components/layout/DashboardLayout'
-import { Table } from '../components/ui/Table'
-import { Button } from '../components/UI/Button'
-import { Input } from '../components/ui/Input'
-import { Modal } from '../components/ui/Modal'
-import { CompanyForm } from '../components/forms/CompanyForm'
-import { getCompanies } from '../services/company.service'
-import { useToast } from '../hooks/useToast'
+import { DashboardLayout } from '../../components/layout/DashboardLayout'
+import { Table } from '../../components/ui/Table'
+import { Button } from '../../components/UI/Button'
+import { Input } from '../../components/ui/Input'
+import { Modal } from '../../components/ui/Modal'
+import { CompanyForm } from '../../components/forms/CompanyForm'
+import { getCompanies } from '../../services/company.service'
+import { useToast } from '../../hooks/useToast'
 import { Plus, Search, Edit, Building2 } from 'lucide-react'
 import { Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -25,7 +25,7 @@ export const CompaniesPage = () => {
     if (!deleteTarget) return;
     try {
       setIsLoading(true);
-      await import('../services/company.service').then(({ deleteCompany }) => deleteCompany(deleteTarget));
+      await import('../../services/company.service').then(({ deleteCompany }) => deleteCompany(deleteTarget));
       showToast('Company deleted successfully', 'success');
       fetchCompanies();
     } catch (error) {

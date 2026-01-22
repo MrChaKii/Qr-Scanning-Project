@@ -12,7 +12,8 @@ import attendanceRoutes from './routes/attendanceRoutes.js';
 import workSessionRoutes from './routes/workSessionRoutes.js';
 import breakSessionRoutes from './routes/breakSessionRoutes.js';
 import scanRoutes from './routes/scanRoutes.js';
-import adminRoutes from './routes/adminRoutes.js'
+import adminRoutes from './routes/adminRoutes.js';
+import processRoutes from './routes/processRoutes.js';
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use('/api/work-session', workSessionRoutes);
 app.use('/api/break-session', breakSessionRoutes);
 app.use('/api/scan', scanRoutes);
 app.use('/api/report',adminRoutes);
+app.use('/api/processes', processRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

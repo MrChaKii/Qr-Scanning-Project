@@ -9,15 +9,16 @@ import { AuthProvider } from './hooks/useAuth'
 import { ToastProvider } from './hooks/useToast'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
-// Pages
+// admin Pages
 import { LoginPage } from './pages/LoginPage'
-import { DashboardPage } from './pages/DashboardPage'
-import { CompaniesPage } from './pages/CompaniesPage'
-import { EmployeesPage } from './pages/EmployeesPage'
-import { EmployeeDetailPage } from './pages/EmployeeDetailPage'
-import { AttendancePage } from './pages/AttendancePage'
-import { WorkSessionsPage } from './pages/WorkSessionsPage'
-import { BreaksPage } from './pages/BreaksPage'
+import { DashboardPage } from './pages/Admin/DashboardPage'
+import { CompaniesPage } from './pages/Admin/CompaniesPage'
+import { EmployeesPage } from './pages/Admin/EmployeesPage'
+import { EmployeeDetailPage } from './pages/Admin/EmployeeDetailPage'
+import { AttendancePage } from './pages/Admin/AttendancePage'
+import { WorkSessionsPage } from './pages/Admin/WorkSessionsPage'
+import { BreaksPage } from './pages/Admin/BreaksPage'
+import { ProcessesPage } from './pages/Admin/ProcessesPage'
 // import { AnalyticsPage } from './pages/AnalyticsPage'
 
 export function App() {
@@ -40,7 +41,7 @@ export function App() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <DashboardPage />
                 </ProtectedRoute>
               }
@@ -49,7 +50,7 @@ export function App() {
             <Route
               path="/companies"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <CompaniesPage />
                 </ProtectedRoute>
               }
@@ -58,7 +59,7 @@ export function App() {
             <Route
               path="/companies/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <CompaniesPage />
                 </ProtectedRoute>
               }
@@ -67,7 +68,7 @@ export function App() {
             <Route
               path="/employees"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <EmployeesPage />
                 </ProtectedRoute>
               }
@@ -76,7 +77,7 @@ export function App() {
             <Route
               path="/employees/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <EmployeeDetailPage />
                 </ProtectedRoute>
               }
@@ -85,7 +86,7 @@ export function App() {
             <Route
               path="/attendance"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <AttendancePage />
                 </ProtectedRoute>
               }
@@ -94,7 +95,7 @@ export function App() {
             <Route
               path="/work-sessions"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <WorkSessionsPage />
                 </ProtectedRoute>
               }
@@ -103,8 +104,17 @@ export function App() {
             <Route
               path="/breaks"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="admin">
                   <BreaksPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/processes"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ProcessesPage />
                 </ProtectedRoute>
               }
             />

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { DashboardLayout } from '../components/layout/DashboardLayout'
+import { DashboardLayout } from '../../components/layout/DashboardLayout'
 // import { StatsCard } from '../components/features/StatsCard'
-import { Table } from '../components/ui/Table'
-import { Button } from '../components/UI/Button'
-import { Badge } from '../components/UI/Badge'
+import { Table } from '../../components/ui/Table'
+import { Button } from '../../components/UI/Button'
+import { Badge } from '../../components/UI/Badge'
 import {
   Users,
   Clock,
