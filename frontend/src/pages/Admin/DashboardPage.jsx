@@ -92,7 +92,7 @@ export const DashboardPage = () => {
           </p>
         </div>
 
-        <div className="flex space-x-3">
+        {/* <div className="flex space-x-3">
           <Button
             variant="secondary"
             onClick={() => navigate('/attendance')}
@@ -105,7 +105,7 @@ export const DashboardPage = () => {
             <Plus className="w-4 h-4 mr-2" />
             Add Employee
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {isLoading ? (

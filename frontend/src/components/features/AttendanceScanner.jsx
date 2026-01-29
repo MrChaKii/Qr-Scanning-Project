@@ -4,6 +4,7 @@ import { Button } from '../UI/Button'
 import { Input } from '../ui/Input'
 import { QrCode, CheckCircle, XCircle } from 'lucide-react'
 import { scanAttendance } from '../../services/attendance.service'
+import { toggleProcessWorkSession } from '../../services/scan.service'
 import { useToast } from '../../hooks/useToast'
 
 // Dynamically load html5-qrcode script if not present
@@ -19,7 +20,7 @@ function loadHtml5QrcodeScript(cb) {
 }
 
 
-export const AttendanceScanner = ({ onScanSuccess }) => {
+export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
   const [employeeId, setEmployeeId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [lastScan, setLastScan] = useState(null)
@@ -63,6 +64,44 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
     }
   }
 
+  const handleProcessToggle = async (valueOverride) => {
+    const raw = (valueOverride ?? employeeId).trim()
+    if (!raw) {
+      showToast('Please scan a QR code or enter an Employee ID', 'warning')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const result = await toggleProcessWorkSession(raw)
+
+      setLastScan({
+        scanType: result.scanType,
+        scanTime: result.scanTime,
+        processName: result.processName || result.session?.processName,
+      })
+
+      const action = result.scanType === 'IN' ? 'started' : 'ended'
+      const proc = result.processName || result.session?.processName
+      showToast(`Session ${action}${proc ? ` (${proc})` : ''}`, 'success')
+      setEmployeeId('')
+
+      if (onScanSuccess) {
+        onScanSuccess(result)
+      }
+    } catch (error) {
+      const errorMessage =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to record session'
+      showToast(errorMessage, 'error')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Camera QR scan logic
   const startCameraScan = () => {
     setShowCamera(true)
@@ -83,12 +122,18 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
         { facingMode: 'environment' },
         { fps: 10, qrbox: 200 },
         (decodedText) => {
-          setEmployeeId(decodedText)
+          const decoded = decodedText
+          setEmployeeId(decoded)
           setShowCamera(false)
           setIsScanning(false)
           qr.stop().catch(()=>{})
           html5QrcodeScannerRef.current = null
-          showToast('QR code scanned!', 'success')
+
+          if (mode === 'workSession') {
+            handleProcessToggle(decoded)
+          } else {
+            showToast('QR code scanned!', 'success')
+          }
         },
         (err) => {}
       ).catch(() => {
@@ -112,7 +157,7 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
     <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
       <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
         <QrCode className="w-5 h-5 mr-2 text-blue-600" />
-        Attendance Scanner
+        {mode === 'workSession' ? 'Process Scanner' : 'Attendance Scanner'}
       </h3>
 
       <div className="space-y-4">
@@ -150,25 +195,38 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
-          <Button
-            variant="primary"
-            onClick={() => handleScan('IN')}
-            isLoading={isLoading}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            CHECK IN
-          </Button>
+        {mode === 'workSession' ? (
+          <div>
+            <Button
+              variant="primary"
+              onClick={() => handleProcessToggle()}
+              isLoading={isLoading}
+              className="bg-indigo-600 hover:bg-indigo-700 w-full"
+            >
+              TOGGLE SESSION (IN / OUT)
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <Button
+              variant="primary"
+              onClick={() => handleScan('IN')}
+              isLoading={isLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              CHECK IN
+            </Button>
 
-          <Button
-            variant="primary"
-            onClick={() => handleScan('OUT')}
-            isLoading={isLoading}
-            className="bg-amber-600 hover:bg-amber-700"
-          >
-            CHECK OUT
-          </Button>
-        </div>
+            <Button
+              variant="primary"
+              onClick={() => handleScan('OUT')}
+              isLoading={isLoading}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              CHECK OUT
+            </Button>
+          </div>
+        )}
 
         {lastScan && (
           <div
@@ -192,6 +250,11 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
                     {lastScan.scanType}
                   </span>
                 </p>
+                {lastScan.processName && (
+                  <p className="text-sm text-slate-700">
+                    Process: <span className="font-medium">{lastScan.processName}</span>
+                  </p>
+                )}
                 <p className="text-sm text-slate-600">
                   {new Date(lastScan.scanTime).toLocaleTimeString()}
                 </p>

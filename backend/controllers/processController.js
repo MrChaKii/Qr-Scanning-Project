@@ -3,7 +3,7 @@ import Process from "../models/Process.js";
 // Create a new process
 export const createProcess = async (req, res) => {
   try {
-    const { processId, processName } = req.body;
+    const { processId, processName, userId } = req.body;
 
     const existing = await Process.findOne({ processId });
     if (existing) {
@@ -12,7 +12,8 @@ export const createProcess = async (req, res) => {
 
     const process = new Process({
       processId,
-      processName
+      processName,
+      userId
     });
 
     await process.save();
@@ -32,7 +33,9 @@ export const createProcess = async (req, res) => {
 // Get all processes
 export const getAllProcesses = async (req, res) => {
   try {
-    const processes = await Process.find().sort({ createdAt: -1 });
+    const processes = await Process.find()
+      .populate('userId', 'name username email')
+      .sort({ createdAt: -1 });
     res.json({ data: processes });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });  
@@ -43,7 +46,8 @@ export const getAllProcesses = async (req, res) => {
 export const getProcessById = async (req, res) => {
   try {
     const { processId } = req.params;
-    const process = await Process.findOne({ processId });
+    const process = await Process.findOne({ processId })
+      .populate('userId', 'name username email');
     
     if (!process) {
       return res.status(404).json({ message: 'Process not found' });
@@ -59,7 +63,7 @@ export const getProcessById = async (req, res) => {
 export const updateProcess = async (req, res) => {
   try {
     const { processId } = req.params;
-    const { processName, processId: newProcessId } = req.body;
+    const { processName, processId: newProcessId, userId } = req.body;
 
     // Build update object
     const updateFields = {};
@@ -67,12 +71,13 @@ export const updateProcess = async (req, res) => {
     if (newProcessId && newProcessId !== processId) {
       updateFields.processId = newProcessId;
     }
+    if (userId !== undefined) updateFields.userId = userId;
 
     const process = await Process.findOneAndUpdate(
       { processId },
       updateFields,
       { new: true }
-    );
+    ).populate('userId', 'name username email');
 
     if (!process) {
       return res.status(404).json({ message: 'Process not found' });
@@ -104,7 +109,22 @@ export const deleteProcess = async (req, res) => {
 export const getProcessesByCompany = async (req, res) => {
   try {
     const { companyId } = req.params;
-    const processes = await Process.find({ companyId }).sort({ createdAt: -1 });
+    const processes = await Process.find({ companyId })
+      .populate('userId', 'name username email')
+      .sort({ createdAt: -1 });
+    res.json({ data: processes });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get processes by user
+export const getProcessesByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const processes = await Process.find({ userId })
+      .populate('userId', 'name username email')
+      .sort({ createdAt: -1 });
     res.json({ data: processes });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

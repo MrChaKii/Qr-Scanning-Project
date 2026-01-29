@@ -3,7 +3,7 @@ import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { AttendanceScanner } from '../../components/features/AttendanceScanner'
 import { Table } from '../../components/ui/Table'
 import { Input } from '../../components/ui/Input'
-import { Badge } from '../../components/ui/Badge'
+import { Badge } from '../../components/UI/Badge'
 import { getDailySummary } from '../../services/attendance.service'
 
 export const AttendancePage = () => {
@@ -92,11 +92,11 @@ export const AttendancePage = () => {
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        <div className="lg:col-span-1">
+        {/* <div className="lg:col-span-1">
           <AttendanceScanner onScanSuccess={fetchSummary} />
-        </div>
+        </div> */}
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-10">
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 h-full">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold text-slate-900">

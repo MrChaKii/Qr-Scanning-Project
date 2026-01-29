@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Process from '../models/Process.js';
 
 // Login
 export const login = async (req, res) => {
@@ -136,6 +137,55 @@ export const deleteUser = async (req, res) => {
     }
 
     res.json({ message: 'User deactivated successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Link process user to a process
+export const linkUserToProcess = async (req, res) => {
+  try {
+    const { userId, processId } = req.body;
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if user has process role
+    if (user.role !== 'process') {
+      return res.status(400).json({ message: 'User must have process role' });
+    }
+
+    // Find the process
+    const process = await Process.findOne({ processId });
+    if (!process) {
+      return res.status(404).json({ message: 'Process not found' });
+    }
+
+    // Update process with userId
+    process.userId = userId;
+    await process.save();
+
+    res.json({ 
+      message: 'User linked to process successfully', 
+      process 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get users by role
+export const getUsersByRole = async (req, res) => {
+  try {
+    const { role } = req.params;
+    const users = await User.find({ role, isActive: true })
+      .select('-password')
+      .populate('assignedProcesses');
+    
+    res.json({ data: users });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

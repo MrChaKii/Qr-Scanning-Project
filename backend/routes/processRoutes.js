@@ -5,7 +5,8 @@ import {
   getProcessById, 
   updateProcess, 
   deleteProcess,
-  getProcessesByCompany 
+  getProcessesByCompany,
+  getProcessesByUser 
 } from '../controllers/processController.js';
 import { auth, authorize } from '../middleware/auth.js';
 
@@ -16,11 +17,13 @@ router.use(auth);
 // Create
 router.post('/', authorize('admin'), createProcess);
 // Read all
-router.get('/', authorize('admin', 'supervisor'), getAllProcesses);
+router.get('/', authorize('admin', 'supervisor', 'process'), getAllProcesses);
 // Read by ID
-router.get('/:processId', authorize('admin', 'supervisor'), getProcessById);
+router.get('/:processId', authorize('admin', 'supervisor', 'process'), getProcessById);
 // Read by company
 router.get('/company/:companyId', authorize('admin', 'supervisor'), getProcessesByCompany);
+// Read by user
+router.get('/user/:userId', authorize('admin', 'supervisor', 'process'), getProcessesByUser);
 // Update
 router.put('/:processId', authorize('admin'), updateProcess);
 // Delete

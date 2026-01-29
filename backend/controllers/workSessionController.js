@@ -3,10 +3,38 @@ import QRCode from '../models/QRCode.js';
 import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
 
+const isMongoObjectId = (value) => typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
+
+const resolveQRCode = async (qrId) => {
+  if (!qrId) return null;
+  if (isMongoObjectId(qrId)) {
+    const byId = await QRCode.findById(qrId).populate('employeeId companyId');
+    if (byId) return byId;
+  }
+  return QRCode.findOne({ qrId }).populate('employeeId companyId');
+};
+
 // GET /api/work-session/all
 export const getAllSessions = async (req, res) => {
   try {
-    const sessions = await WorkSession.find().populate('qrId companyId employeeId');
+    const { date } = req.query;
+
+    const query = {};
+    if (date) {
+      // Expect YYYY-MM-DD; interpret as local calendar date
+      const parts = String(date).split('-').map(n => Number(n));
+      if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) {
+        return res.status(400).json({ message: 'Invalid date format. Use YYYY-MM-DD.' });
+      }
+      const [year, month, day] = parts;
+      const start = new Date(year, month - 1, day, 0, 0, 0, 0);
+      const end = new Date(year, month - 1, day, 23, 59, 59, 999);
+      query.startTime = { $gte: start, $lte: end };
+    }
+
+    const sessions = await WorkSession.find(query)
+      .sort({ startTime: -1 })
+      .populate('qrId companyId employeeId');
     res.status(200).json({
       message: 'All work sessions retrieved',
       sessions
@@ -27,10 +55,11 @@ export const startSession = async (req, res) => {
       return res.status(400).json({ message: 'qrId and processName are required' });
     }
     // Find QR code and related info
-    const qr = await QRCode.findById(qrId).populate('employeeId companyId');
+    const qr = await resolveQRCode(qrId);
     if (!qr) {
       return res.status(404).json({ message: 'QR code not found' });
     }
+    const qrObjectId = qr._id;
     const companyId = qr.companyId?._id || qr.companyId;
     const employeeId = qr.employeeId?._id || qr.employeeId || null;
     // const machineId = qr.machineId?._id || qr.machineId || null;
@@ -39,7 +68,7 @@ export const startSession = async (req, res) => {
     // }
     // Prevent overlapping sessions
     const openSession = await WorkSession.findOne({
-      qrId,
+      qrId: qrObjectId,
       processName,
       endTime: { $exists: false }
     });
@@ -63,7 +92,7 @@ export const startSession = async (req, res) => {
     }
     
     const session = new WorkSession({
-      qrId,
+      qrId: qrObjectId,
       companyId,
       employeeId,
       // machineId,
@@ -91,13 +120,14 @@ export const stopSession = async (req, res) => {
       return res.status(400).json({ message: 'qrId and processName are required' });
     }
     // Find QR code and related info
-    const qr = await QRCode.findById(qrId).populate('employeeId companyId');
+    const qr = await resolveQRCode(qrId);
     if (!qr) {
       return res.status(404).json({ message: 'QR code not found' });
     }
+    const qrObjectId = qr._id;
     // Find open session
     const session = await WorkSession.findOne({
-      qrId,
+      qrId: qrObjectId,
       processName,
       endTime: { $exists: false }
     });

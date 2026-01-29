@@ -8,6 +8,12 @@ import {
   companyWiseProductivity
 } from '../controllers/adminController.js';
 
+import {
+  getDailyManpowerWorkHoursByCompany,
+  getDailyAverageManpowerWorkHoursByCompany,
+  getMonthlyManpowerWorkHoursByCompany
+} from '../controllers/manpowerAnalyticsController.js';
+
 const router = express.Router();
 
 // Admin reporting APIs
@@ -16,5 +22,10 @@ router.get('/report/total-work-time', totalWorkTimePerEmployee);
 router.get('/report/machine-usage', machineUsageSummary);
 router.get('/report/manpower-vs-permanent', manpowerVsPermanent);
 router.get('/report/company-productivity', companyWiseProductivity);
+
+// Analytics (Manpower work hours)
+router.get('/analytics/manpower-hours/daily', getDailyManpowerWorkHoursByCompany);
+router.get('/analytics/manpower-hours/daily-average', getDailyAverageManpowerWorkHoursByCompany);
+router.get('/analytics/manpower-hours/monthly', getMonthlyManpowerWorkHoursByCompany);
 
 export default router;

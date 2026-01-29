@@ -18,36 +18,25 @@ export const scanAttendance = async (input, scanType) => {
       const empId = qrId.trim();
       console.log('Looking up employee with ID:', empId);
       
-      // Get employee by employeeId
-      const empRes = await api.get('/api/employees', { params: { employeeId: empId } });
-      console.log('Employee API response:', empRes.data);
+      // Get employee by business employeeId (scoped endpoint)
+      const empRes = await api.get('/api/employees/lookup', { params: { employeeId: empId } });
+      console.log('Employee lookup response:', empRes.data);
       
-      const employees = Array.isArray(empRes.data) ? empRes.data : [empRes.data];
-      const employee = employees.find(e => e && e.employeeId === empId) || employees[0];
+      const employee = empRes.data;
       
       if (!employee || !employee._id) {
         throw new Error(`Employee with ID '${empId}' not found`);
       }
       
       console.log('Found employee:', employee);
-      
-      // Get QRCode for employee
-      const companyId = employee.companyId?._id || employee.companyId;
-      if (!companyId) {
-        throw new Error(`Employee '${empId}' has no associated company`);
-      }
-      
-      console.log('Generating QR for employee:', employee._id, 'company:', companyId);
-      const qrRes = await api.post('/api/qr/generate', {
-        companyId: companyId,
-        employeeId: employee._id
-      });
-      
-      console.log('QR generation response:', qrRes.data);
+
+      // Get existing QR id for employee (no admin permission required)
+      const qrRes = await api.get(`/api/qr/employee/${employee._id}`);
+      console.log('QR lookup response:', qrRes.data);
       qrId = qrRes.data.qrId;
       
       if (!qrId) {
-        throw new Error('QR code generation failed - no qrId returned');
+        throw new Error('QR code lookup failed - no qrId returned');
       }
     } catch (err) {
       console.error('Error resolving QR code:', err);
