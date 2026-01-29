@@ -4,7 +4,7 @@ import { AttendanceScanner } from '../../components/features/AttendanceScanner'
 import { Card } from '../../components/ui/Card'
 import { ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '../../components/UI/Button'
+import { Button } from '../../components/ui/Button'
 
 export const ProcessScanPage = () => {
   const navigate = useNavigate()

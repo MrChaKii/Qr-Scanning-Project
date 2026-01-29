@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
-import { Badge } from '../../components/UI/Badge'
+import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
-import { Button } from '../../components/UI/Button'
+import { Button } from '../../components/ui/Button'
 import { getWorkSessions } from '../../services/workSession.service'
 
 export const WorkSessionsPage = () => {

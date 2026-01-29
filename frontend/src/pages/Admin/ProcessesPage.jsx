@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Table } from '../../components/ui/Table';
-import { Button } from '../../components/UI/Button';
-import { Badge } from '../../components/UI/Badge';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { ProcessForm } from '../../components/forms/ProcessForm';

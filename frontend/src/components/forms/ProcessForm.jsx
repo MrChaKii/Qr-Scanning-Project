@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '../UI/Button';
+import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useToast } from '../../hooks/useToast';
 import { createProcess, updateProcess } from '../../services/process.service';

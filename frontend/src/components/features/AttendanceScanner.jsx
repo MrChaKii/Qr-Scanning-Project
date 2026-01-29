@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react'
-import { Button } from '../UI/Button'
+import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { QrCode, CheckCircle, XCircle } from 'lucide-react'
 import { scanAttendance } from '../../services/attendance.service'

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Button } from '../UI/Button'
+import { Button } from '../ui/Button'
 import { Select } from '../ui/Select'
 import { useToast } from '../../hooks/useToast'
 import { getUsersByRole, linkUserToProcess } from '../../services/auth.service'
