@@ -1,47 +1,135 @@
 import React, { useEffect, useState } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
-// import { StatsCard } from '../components/features/StatsCard'
 import { Table } from '../../components/ui/Table'
-import { Button } from '../../components/UI/Button'
-import { Badge } from '../../components/UI/Badge'
+import { Button } from '../../components/ui/Button'
+import { Badge } from '../../components/ui/Badge'
+import { Card } from '../../components/ui/Card'
 import {
   Users,
-  Clock,
   Building2,
-  CheckCircle,
-  Plus,
-  QrCode,
+  Cpu,
 } from 'lucide-react'
-// import { getAnalyticsDashboard } from '../services/analytics.service'
-// import { getDailySummary } from '../services/attendance.service'
 import { useNavigate } from 'react-router-dom'
+import { getCompanies } from '../../services/company.service'
+import { getProcesses } from '../../services/process.service'
+import { getEmployees } from '../../services/employee.service'
+
+const StatCard = ({ title, value, icon: Icon, tone = 'slate' }) => {
+  const toneStyles = {
+    slate: {
+      border: 'border-slate-200',
+      accentBorder: 'border-l-slate-300',
+      iconBg: 'bg-slate-100',
+      iconFg: 'text-slate-700',
+      gradient: 'from-slate-50 to-white',
+    },
+    amber: {
+      border: 'border-amber-200',
+      accentBorder: 'border-l-amber-500',
+      iconBg: 'bg-amber-100',
+      iconFg: 'text-amber-700',
+      gradient: 'from-amber-50 to-white',
+    },
+    indigo: {
+      border: 'border-indigo-200',
+      accentBorder: 'border-l-indigo-500',
+      iconBg: 'bg-indigo-100',
+      iconFg: 'text-indigo-700',
+      gradient: 'from-indigo-50 to-white',
+    },
+    emerald: {
+      border: 'border-emerald-200',
+      accentBorder: 'border-l-emerald-500',
+      iconBg: 'bg-emerald-100',
+      iconFg: 'text-emerald-700',
+      gradient: 'from-emerald-50 to-white',
+    },
+  }
+
+  const styles = toneStyles[tone] ?? toneStyles.slate
+
+  return (
+    <Card
+      className={`p-5 border ${styles.border} border-l-4 ${styles.accentBorder} bg-linear-to-br ${styles.gradient} transition-shadow hover:shadow-md`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-600">{title}</p>
+          <p className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
+            {value}
+          </p>
+        </div>
+        {Icon ? (
+          <div
+            className={`h-11 w-11 rounded-xl ${styles.iconBg} flex items-center justify-center ring-1 ring-black/5`}
+          >
+            <Icon className={`h-5 w-5 ${styles.iconFg}`} />
+          </div>
+        ) : null}
+      </div>
+    </Card>
+  )
+}
 
 export const DashboardPage = () => {
-  const [stats, setStats] = useState(null)
+  const [counts, setCounts] = useState({
+    manpowerCompanies: 0,
+    processes: 0,
+    employees: 0,
+  })
   const [recentAttendance, setRecentAttendance] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   const navigate = useNavigate()
 
-//   useEffect(() => {
-//     const fetchData = async () => {
-//       try {
-//         const [statsData, attendanceData] = await Promise.all([
-//           getAnalyticsDashboard(),
-//           getDailySummary(new Date().toISOString().split('T')[0]),
-//         ])
+  useEffect(() => {
+    let isMounted = true
 
-//         setStats(statsData)
-//         setRecentAttendance(attendanceData.slice(0, 5))
-//       } catch (error) {
-//         console.error('Failed to fetch dashboard data', error)
-//       } finally {
-//         setIsLoading(false)
-//       }
-//     }
+    const fetchCounts = async () => {
+      setIsLoading(true)
+      try {
+        const [companiesRaw, processesRaw, employeesRaw] =
+          await Promise.all([
+            getCompanies(),
+            getProcesses(),
+            getEmployees('all'),
+          ])
 
-//     fetchData()
-//   }, [])
+        const companies = Array.isArray(companiesRaw)
+          ? companiesRaw
+          : []
+        const processes = Array.isArray(processesRaw)
+          ? processesRaw
+          : []
+        const employees = Array.isArray(employeesRaw)
+          ? employeesRaw
+          : []
+
+        const manpowerCompanies = companies.filter(
+          (c) => c?.employeeTypeAllowed === 'manpower'
+        ).length
+
+        if (!isMounted) return
+        setCounts({
+          manpowerCompanies,
+          processes: processes.length,
+          employees: employees.length,
+        })
+
+        // Leaving attendance summary as empty until wired up
+        setRecentAttendance([])
+      } catch (error) {
+        console.error('Failed to fetch dashboard counts', error)
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+
+    fetchCounts()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const columns = [
     {
@@ -109,8 +197,8 @@ export const DashboardPage = () => {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-pulse">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-pulse">
+          {[...Array(3)].map((_, i) => (
             <div
               key={i}
               className="h-32 bg-slate-200 rounded-lg"
@@ -118,40 +206,24 @@ export const DashboardPage = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Today's Attendance"
-            value={stats?.todayAttendance || 0}
-            icon={CheckCircle}
-            color="green"
-            trend="+5%"
-            trendUp={true}
-          />
-          <StatsCard
-            title="Active Sessions"
-            value={stats?.activeWorkSessions || 0}
-            icon={Clock}
-            color="blue"
-          />
-          <StatsCard
-            title="Total Employees"
-            value={stats?.totalEmployees || 0}
-            icon={Users}
-            color="purple"
-          />
-          <StatsCard
-            title="Manpower Ratio"
-            value={
-              stats
-                ? `${Math.round(
-                    (stats.manpowerCount /
-                      stats.totalEmployees) *
-                      100
-                  )}%`
-                : '0%'
-            }
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <StatCard
+            title="Manpower Companies"
+            value={counts.manpowerCompanies}
             icon={Building2}
-            color="amber"
+            tone="amber"
+          />
+          <StatCard
+            title="Processes"
+            value={counts.processes}
+            icon={Cpu}
+            tone="indigo"
+          />
+          <StatCard
+            title="Employees"
+            value={counts.employees}
+            icon={Users}
+            tone="emerald"
           />
         </div>
       )}

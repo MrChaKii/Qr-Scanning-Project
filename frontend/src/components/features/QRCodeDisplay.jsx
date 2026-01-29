@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { QRCodeCanvas } from 'qrcode.react'
-import { Button } from '../UI/Button'
+import { Button } from '../ui/Button'
 import { Download } from 'lucide-react'
 
 export const QRCodeDisplay = ({

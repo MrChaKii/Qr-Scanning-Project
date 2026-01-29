@@ -1,6 +1,3 @@
-export const deleteCompany = async (companyId) => {
-  return api.delete(`/api/companies/${companyId}`);
-};
 import api from './api'
 
 export const getCompanies = async () => {
@@ -15,10 +12,15 @@ export const getCompany = async (id) => {
 
 export const createCompany = async (company) => {
   const response = await api.post('/api/companies', company)
-  return response.data.data
+  return response.data.company
 }
 
 export const updateCompany = async (id, company) => {
   const response = await api.put(`/api/companies/${id}`, company)
-  return response.data.data
+  return response.data.company
+}
+
+export const deleteCompany = async (companyId) => {
+  const response = await api.delete(`/api/companies/${companyId}`)
+  return response.data
 }

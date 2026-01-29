@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
-import { Button } from '../../components/UI/Button'
+import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Modal } from '../../components/ui/Modal'
 import { CompanyForm } from '../../components/forms/CompanyForm'

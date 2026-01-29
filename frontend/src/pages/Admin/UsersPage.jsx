@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Table } from '../../components/ui/Table';
-import { Button } from '../../components/UI/Button';
-import { Badge } from '../../components/UI/Badge';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
@@ -16,10 +16,13 @@ import { Users, Edit, Trash2, Plus, UserCog, Link } from 'lucide-react';
 export const UsersPage = () => {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [processes, setProcesses] = useState([]);
   const [linkFormData, setLinkFormData] = useState({
     userId: '',
@@ -99,15 +102,24 @@ export const UsersPage = () => {
     }
   };
 
-  const handleDelete = async (userId) => {
-    if (window.confirm('Are you sure you want to deactivate this user?')) {
-      try {
-        await userService.deleteUser(userId);
-        showToast('User deactivated successfully', 'success');
-        fetchUsers();
-      } catch (error) {
-        showToast('Failed to deactivate user', 'error');
-      }
+  const handleDeleteClick = (userId) => {
+    setDeleteTarget(userId);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      setIsDeleting(true);
+      await userService.deleteUser(deleteTarget);
+      showToast('User deactivated successfully', 'success');
+      fetchUsers();
+    } catch (error) {
+      showToast('Failed to deactivate user', 'error');
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -247,7 +259,7 @@ export const UsersPage = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleDelete(row._id)}
+            onClick={() => handleDeleteClick(row._id)}
             className="text-red-600 hover:text-red-700"
           >
             <Trash2 className="w-4 h-4" />
@@ -462,6 +474,24 @@ export const UsersPage = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirm Delete"
+      >
+        <div className="p-4">
+          <p className="mb-6 text-slate-700">Are you sure you want to deactivate this user?</p>
+          <div className="flex justify-end space-x-3">
+            <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete} isLoading={isDeleting}>
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </DashboardLayout>
   );

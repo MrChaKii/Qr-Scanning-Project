@@ -3,7 +3,7 @@ import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Card } from '../../components/ui/Card'
 import { Input } from '../../components/ui/Input'
 import { Table } from '../../components/ui/Table'
-import { Button } from '../../components/UI/Button'
+import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import {
   getManpowerDailyAverageHoursByCompany,

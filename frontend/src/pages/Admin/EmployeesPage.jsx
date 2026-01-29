@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
-import { Button } from '../../components/UI/Button'
+import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Badge } from '../../components/ui/Badge'
 import { Modal } from '../../components/ui/Modal'
@@ -17,8 +17,11 @@ export const EmployeesPage = () => {
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState(undefined)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
   const navigate = useNavigate()
   const { showToast } = useToast()
@@ -60,15 +63,24 @@ export const EmployeesPage = () => {
     setIsModalOpen(true)
   }
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this employee?')) {
-      try {
-        const res = await deleteEmployee(id);
-        showToast(res.message || 'Employee deactivated successfully', 'success');
-        fetchEmployees();
-      } catch (error) {
-        showToast('Failed to delete employee', 'error');
-      }
+  const handleDeleteClick = (id) => {
+    setDeleteTarget(id)
+    setIsDeleteModalOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      setIsDeleting(true)
+      const res = await deleteEmployee(deleteTarget)
+      showToast(res.message || 'Employee deactivated successfully', 'success')
+      fetchEmployees()
+    } catch (error) {
+      showToast('Failed to delete employee', 'error')
+    } finally {
+      setIsDeleting(false)
+      setIsDeleteModalOpen(false)
+      setDeleteTarget(null)
     }
   }
 
@@ -134,7 +146,7 @@ export const EmployeesPage = () => {
           <Button
             variant="danger"
             size="sm"
-              onClick={() => handleDelete(item._id)}
+            onClick={() => handleDeleteClick(item._id || item.id)}
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -202,6 +214,24 @@ export const EmployeesPage = () => {
           onSuccess={handleSuccess}
           onCancel={() => setIsModalOpen(false)}
         />
+      </Modal>
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirm Delete"
+      >
+        <div className="p-4">
+          <p className="mb-6 text-slate-700">Are you sure you want to delete this employee?</p>
+          <div className="flex justify-end space-x-3">
+            <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete} isLoading={isDeleting}>
+              Delete
+            </Button>
+          </div>
+        </div>
       </Modal>
     </DashboardLayout>
   )
