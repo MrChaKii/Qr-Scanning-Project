@@ -6,3 +6,14 @@
 # Supervisor logins
 - **username**: supervisor2
 - **password**: supervisor2@123
+
+# Security logins
+- **username**: Security
+- **password**: sec123
+- **email**: sec@gmail.com
+
+# Process logins
+- **username**: Packeting
+- **password**: pack123
+- **email**: pack.process@gmail.com
+

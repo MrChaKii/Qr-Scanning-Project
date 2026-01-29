@@ -1,30 +1,20 @@
 import React, { useEffect, useState } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
-import { Button } from '../../components/UI/Button'
 import { Badge } from '../../components/UI/Badge'
-import { Modal } from '../../components/ui/Modal'
-import { WorkSessionForm } from '../../components/forms/WorkSessionForm'
-import { SessionTimer } from '../../components/features/SessionTimer'
-import {
-  getWorkSessions,
-  stopWorkSession,
-} from '../../services/workSession.service'
-import { Plus, Play, Square } from 'lucide-react'
-import { useToast } from '../../hooks/useToast'
+import { Input } from '../../components/ui/Input'
+import { Button } from '../../components/UI/Button'
+import { getWorkSessions } from '../../services/workSession.service'
 
 export const WorkSessionsPage = () => {
   const [sessions, setSessions] = useState([])
-  const [filter, setFilter] = useState('active')
   const [isLoading, setIsLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState('')
 
-  const { showToast } = useToast()
-
-  const fetchSessions = async () => {
+  const fetchSessions = async (date) => {
     setIsLoading(true)
     try {
-      const data = await getWorkSessions(filter)
+      const data = date ? await getWorkSessions({ date }) : await getWorkSessions()
       setSessions(data)
     } catch (error) {
       console.error('Failed to fetch work sessions', error)
@@ -34,79 +24,52 @@ export const WorkSessionsPage = () => {
   }
 
   useEffect(() => {
-    fetchSessions()
-  }, [filter])
+    fetchSessions(selectedDate)
+  }, [])
 
-  const handleStopSession = async (id) => {
-    if (window.confirm('Are you sure you want to stop this session?')) {
-      try {
-        await stopWorkSession(id)
-        showToast('Session stopped successfully', 'success')
-        fetchSessions()
-      } catch (error) {
-        showToast('Failed to stop session', 'error')
-      }
-    }
-  }
-
-  const handleSuccess = () => {
-    setIsModalOpen(false)
-    fetchSessions()
-  }
+  useEffect(() => {
+    fetchSessions(selectedDate)
+  }, [selectedDate])
 
   const columns = [
     {
       header: 'Employee',
       accessor: (item) =>
-        item.employee
-          ? `${item.employee.firstName} ${item.employee.lastName}`
+        item.employeeId
+          ? (item.employeeId.employeeId || item.employeeId.name || item.employeeId._id || 'Unknown')
           : 'Unknown',
     },
     {
-      header: 'Machine',
-      accessor: 'machineId',
+      header: 'Company',
+      accessor: (item) => item.companyId?.companyName || '—',
+    },
+    {
+      header: 'Process',
+      accessor: (item) => item.processName || '—',
     },
     {
       header: 'Start Time',
       accessor: (item) =>
-        new Date(item.startTime).toLocaleTimeString(),
+        item.startTime ? new Date(item.startTime).toLocaleString() : '—',
     },
     {
-      header: 'Duration',
+      header: 'End Time',
       accessor: (item) =>
-        item.status === 'active' ? (
-          <SessionTimer startTime={item.startTime} />
-        ) : item.duration ? (
-          `${Math.floor(item.duration / 3600)}h ${Math.floor(
-            (item.duration % 3600) / 60
-          )}m`
-        ) : (
-          '-'
-        ),
+        item.endTime ? new Date(item.endTime).toLocaleString() : '—',
     },
     {
       header: 'Status',
       accessor: (item) => (
         <Badge
-          variant={item.status === 'active' ? 'success' : 'neutral'}
+          variant={item.endTime ? 'neutral' : 'success'}
         >
-          {item.status.toUpperCase()}
+          {(item.endTime ? 'COMPLETED' : 'ACTIVE')}
         </Badge>
       ),
     },
     {
-      header: 'Actions',
-      accessor: (item) =>
-        item.status === 'active' && (
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => handleStopSession(item.id)}
-          >
-            <Square className="w-3 h-3 mr-1" />
-            Stop
-          </Button>
-        ),
+      header: 'Duration (min)',
+      accessor: (item) => (typeof item.durationMinutes === 'number' ? item.durationMinutes : '—'),
     },
   ]
 
@@ -116,57 +79,39 @@ export const WorkSessionsPage = () => {
         <h1 className="text-2xl font-bold text-slate-900">
           Work Sessions
         </h1>
-
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Play className="w-4 h-4 mr-2" />
-          Start Session
-        </Button>
       </div>
 
       <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6">
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setFilter('active')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filter === 'active'
-                ? 'bg-green-100 text-green-700'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Active Sessions
-          </button>
+        <div className="flex flex-col md:flex-row md:items-end gap-3">
+          <div className="w-full md:max-w-xs">
+            <Input
+              label="Filter by date"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+          </div>
 
-          <button
-            onClick={() => setFilter('completed')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              filter === 'completed'
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Completed History
-          </button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={() => setSelectedDate('')}
+              disabled={!selectedDate}
+            >
+              Clear
+            </Button>
+          </div>
         </div>
       </div>
 
       <Table
         data={sessions}
         columns={columns}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         isLoading={isLoading}
-        emptyMessage={`No ${filter} sessions found`}
+        emptyMessage={selectedDate ? `No work sessions found for ${selectedDate}` : 'No work sessions found'}
       />
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Start New Work Session"
-      >
-        <WorkSessionForm
-          onSuccess={handleSuccess}
-          onCancel={() => setIsModalOpen(false)}
-        />
-      </Modal>
     </DashboardLayout>
   )
 }

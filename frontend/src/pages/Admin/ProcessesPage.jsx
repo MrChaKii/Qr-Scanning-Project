@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../../components/layout/DashboardLayout';
 import { Table } from '../../components/ui/Table';
 import { Button } from '../../components/UI/Button';
+import { Badge } from '../../components/UI/Badge';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { ProcessForm } from '../../components/forms/ProcessForm';
 import { getProcesses, deleteProcess } from '../../services/process.service';
 import { useToast } from '../../hooks/useToast';
-import { Plus, Search, Edit, Workflow, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Workflow, Trash2, User } from 'lucide-react';
 
 export const ProcessesPage = () => {
   const { showToast } = useToast();
@@ -98,6 +99,22 @@ export const ProcessesPage = () => {
           </div>
           <span className="font-medium">{item.processName}</span>
         </div>
+      ),
+    },
+    {
+      header: 'Assigned User',
+      accessor: (item) => (
+        item.userId ? (
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-slate-500" />
+            <div>
+              <div className="font-medium text-slate-900">{item.userId.name}</div>
+              <div className="text-xs text-slate-500">@{item.userId.username}</div>
+            </div>
+          </div>
+        ) : (
+          <Badge variant="secondary">Not Assigned</Badge>
+        )
       ),
     },
     {

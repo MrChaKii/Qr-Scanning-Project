@@ -25,9 +25,15 @@ export const LoginForm = () => {
     setIsLoading(true)
 
     try {
-      await login(username, password)
+      const response = await login(username, password)
       showToast('Login successful', 'success')
-      navigate('/dashboard')
+      
+      // Redirect based on user role
+      if (response.user?.role === 'security') {
+        navigate('/security/scan')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (error) {
       showToast(
         error?.response?.data?.error || 'Invalid credentials',

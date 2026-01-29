@@ -10,13 +10,16 @@ import {
   BarChart3,
   LogOut,
   Cpu,
+  UserCog,
+  Scan,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 export const Sidebar = () => {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
 
-  const navItems = [
+  // Admin navigation items
+  const adminNavItems = [
     {
       to: '/dashboard',
       icon: LayoutDashboard,
@@ -31,6 +34,11 @@ export const Sidebar = () => {
       to: '/employees',
       icon: Users,
       label: 'Employees',
+    },
+    {
+      to: '/users',
+      icon: UserCog,
+      label: 'Users & Roles',
     },
     {
       to: '/processes',
@@ -59,11 +67,42 @@ export const Sidebar = () => {
     },
   ]
 
+  // Process navigation items
+  const processNavItems = [
+    {
+      to: '/process/dashboard',
+      icon: LayoutDashboard,
+      label: 'Dashboard',
+    },
+    {
+      to: '/process/scan',
+      icon: Scan,
+      label: 'Scanner',
+    },
+  ]
+
+  // Security navigation items
+  const securityNavItems = [
+    {
+      to: '/security/scan',
+      icon: Scan,
+      label: 'Attendance Scanner',
+    },
+  ]
+
+  // Select navigation items based on user role
+  let navItems = adminNavItems
+  if (user?.role === 'process') {
+    navItems = processNavItems
+  } else if (user?.role === 'security') {
+    navItems = securityNavItems
+  }
+
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-slate-900 text-white flex flex-col">
       <div className="p-6 border-b border-slate-800">
         <h1 className="text-xl font-bold tracking-wider">
-          WORKFORCE<span className="text-blue-500">ADMIN</span>
+          WORKFORCE<span className="text-blue-500">{user?.role?.toUpperCase() || 'ADMIN'}</span>
         </h1>
       </div>
 

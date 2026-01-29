@@ -1,6 +1,34 @@
 import Employee from "../models/Employee.js";
 import Company from "../models/Company.js";
 
+// Lookup employee by business employeeId (e.g. EMP001)
+export const getEmployeeByEmployeeId = async (req, res) => {
+  try {
+    const { employeeId } = req.query;
+
+    if (!employeeId || typeof employeeId !== "string" || employeeId.trim() === "") {
+      return res.status(400).json({ message: "employeeId query param is required" });
+    }
+
+    const normalizedEmployeeId = employeeId.trim();
+
+    const employee = await Employee.findOne({ employeeId: normalizedEmployeeId }).populate(
+      "companyId"
+    );
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    return res.json(employee);
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 // Create employee
 export const createEmployee = async (req, res) => {
   try {

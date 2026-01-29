@@ -27,6 +27,26 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
 
   // Check if a specific role is required and if user has that role
   if (requiredRole && user?.role !== requiredRole) {
+    // Redirect security users to their scan page
+    if (user?.role === 'security') {
+      return (
+        <Navigate
+          to="/security/scan"
+          replace
+        />
+      )
+    }
+    
+    // Redirect process users to their dashboard
+    if (user?.role === 'process') {
+      return (
+        <Navigate
+          to="/process/dashboard"
+          replace
+        />
+      )
+    }
+    
     return (
       <Navigate
         to="/dashboard"

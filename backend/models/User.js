@@ -16,15 +16,15 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'supervisor', 'security'],
+    enum: ['admin', 'supervisor', 'security', 'process'],
     required: true
   },
   email: {
     type: String
   },
-  contactNumber: {
-    type: String
-  },
+  // contactNumber: {
+  //   type: String
+  // },
   assignedProcesses: [
     {
       type: mongoose.Schema.Types.ObjectId,
