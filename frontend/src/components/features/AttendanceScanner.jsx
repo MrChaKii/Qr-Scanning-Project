@@ -33,7 +33,7 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
 
   const handleScan = async (type) => {
     if (!employeeId.trim()) {
-      showToast('Please enter an Employee ID', 'warning')
+      showToast('Please scan a QR code', 'warning')
       return
     }
 
@@ -47,7 +47,8 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
       const result = await scanAttendance(cleanId, type)
 
       setLastScan(result)
-      showToast(`Successfully checked ${type}`, 'success')
+      const scanTypeText = result.scanType || type
+      showToast(`Successfully checked ${scanTypeText}`, 'success')
       setEmployeeId('')
 
       if (onScanSuccess) {
@@ -59,6 +60,42 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
       const errorMessage = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to scan attendance'
       console.error('Final error message:', errorMessage)
       showToast(errorMessage, 'error')
+      setEmployeeId('') // Clear on error too
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Auto scan with toggle (no type needed - backend determines IN/OUT)
+  const handleAutoScan = async (valueOverride) => {
+    const raw = (valueOverride ?? employeeId).trim()
+    if (!raw) {
+      showToast('Please scan a QR code', 'warning')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const cleanId = raw
+      console.log('Auto scanning attendance for:', cleanId)
+      
+      // Don't pass scanType - let backend auto-toggle
+      const result = await scanAttendance(cleanId, null)
+
+      setLastScan(result)
+      const action = result.scanType === 'IN' ? 'IN' : 'OUT'
+      showToast(`✓ Checked ${action}`, 'success')
+      setEmployeeId('')
+
+      if (onScanSuccess) {
+        onScanSuccess()
+      }
+    } catch (error) {
+      console.error('Attendance scan error:', error)
+      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to scan attendance'
+      showToast(errorMessage, 'error')
+      setEmployeeId('') // Clear on error too
     } finally {
       setIsLoading(false)
     }
@@ -127,7 +164,8 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
           if (mode === 'workSession') {
             handleProcessToggle(decoded)
           } else {
-            showToast('QR code scanned! Tap CHECK IN or CHECK OUT', 'success')
+            // Auto-scan for attendance mode
+            handleAutoScan(decoded)
           }
           // Keep camera running for next scan
         },
@@ -167,52 +205,14 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
         {/* Camera View - Always Displayed */}
         <div className="mt-2 mb-4 bg-slate-50 rounded-lg p-4">
           <div ref={cameraRef} id="qr-reader" style={{ width: '100%', maxWidth: 400, margin: '0 auto' }} />
+          <p className="text-center text-sm text-slate-600 mt-3">
+            {isLoading ? 'Processing...' : 'Point camera at QR code to scan'}
+          </p>
         </div>
-
-        {/* Employee ID Display */}
-        {employeeId && (
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-            <p className="text-sm text-blue-600 font-medium">Scanned ID:</p>
-            <p className="text-lg font-mono text-blue-900">{employeeId}</p>
-          </div>
-        )}
-
-        {mode === 'workSession' ? (
-          <div>
-            <Button
-              variant="primary"
-              onClick={() => handleProcessToggle()}
-              isLoading={isLoading}
-              className="bg-indigo-600 hover:bg-indigo-700 w-full"
-            >
-              TOGGLE SESSION (IN / OUT)
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <Button
-              variant="primary"
-              onClick={() => handleScan('IN')}
-              isLoading={isLoading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              CHECK IN
-            </Button>
-
-            <Button
-              variant="primary"
-              onClick={() => handleScan('OUT')}
-              isLoading={isLoading}
-              className="bg-amber-600 hover:bg-amber-700"
-            >
-              CHECK OUT
-            </Button>
-          </div>
-        )}
 
         {lastScan && (
           <div
-            className={`mt-4 p-4 rounded-md border ${
+            className={`p-4 rounded-md border ${
               lastScan.scanType === 'IN'
                 ? 'bg-green-50 border-green-200'
                 : 'bg-amber-50 border-amber-200'
