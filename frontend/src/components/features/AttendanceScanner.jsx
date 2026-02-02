@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { QrCode, CheckCircle, XCircle } from 'lucide-react'
@@ -24,7 +24,7 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
   const [employeeId, setEmployeeId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [lastScan, setLastScan] = useState(null)
-  const [showCamera, setShowCamera] = useState(false)
+  const [showCamera, setShowCamera] = useState(true) // Camera always visible
   const [isScanning, setIsScanning] = useState(false)
   const cameraRef = useRef(null)
   const html5QrcodeScannerRef = useRef(null)
@@ -104,7 +104,6 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
 
   // Camera QR scan logic
   const startCameraScan = () => {
-    setShowCamera(true)
     setIsScanning(true)
     loadHtml5QrcodeScript(() => {
       if (!window.Html5Qrcode) {
@@ -120,38 +119,42 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
       html5QrcodeScannerRef.current = qr
       qr.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: 200 },
+        { fps: 10, qrbox: 250 },
         (decodedText) => {
           const decoded = decodedText
           setEmployeeId(decoded)
-          setShowCamera(false)
-          setIsScanning(false)
-          qr.stop().catch(()=>{})
-          html5QrcodeScannerRef.current = null
 
           if (mode === 'workSession') {
             handleProcessToggle(decoded)
           } else {
-            showToast('QR code scanned!', 'success')
+            showToast('QR code scanned! Tap CHECK IN or CHECK OUT', 'success')
           }
+          // Keep camera running for next scan
         },
         (err) => {}
       ).catch(() => {
         setIsScanning(false)
-        setShowCamera(false)
         showToast('Unable to access camera', 'error')
       })
     })
   }
 
   const stopCameraScan = () => {
-    setShowCamera(false)
     setIsScanning(false)
     if (html5QrcodeScannerRef.current) {
       html5QrcodeScannerRef.current.stop().catch(()=>{})
       html5QrcodeScannerRef.current = null
     }
   }
+
+  // Auto-start camera when component mounts
+  useEffect(() => {
+    startCameraScan()
+    
+    return () => {
+      stopCameraScan()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
@@ -161,37 +164,16 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
       </h3>
 
       <div className="space-y-4">
-        <div className="flex gap-2">
-          <Input
-            placeholder="Scan QR Code or enter Employee ID"
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-            className="text-lg font-mono"
-            autoFocus
-          />
-          <Button
-            variant="secondary"
-            onClick={startCameraScan}
-            disabled={isScanning}
-            className="bg-blue-100 hover:bg-blue-200 text-blue-700"
-            type="button"
-          >
-            <QrCode className="w-5 h-5 mr-1 inline-block" />
-            Camera
-          </Button>
+        {/* Camera View - Always Displayed */}
+        <div className="mt-2 mb-4 bg-slate-50 rounded-lg p-4">
+          <div ref={cameraRef} id="qr-reader" style={{ width: '100%', maxWidth: 400, margin: '0 auto' }} />
         </div>
 
-        {showCamera && (
-          <div className="mt-2 mb-2">
-            <div ref={cameraRef} id="qr-reader" style={{ width: 260, margin: '0 auto' }} />
-            <Button
-              variant="secondary"
-              onClick={stopCameraScan}
-              className="mt-2 bg-gray-200 hover:bg-gray-300 text-gray-700"
-              type="button"
-            >
-              Cancel
-            </Button>
+        {/* Employee ID Display */}
+        {employeeId && (
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <p className="text-sm text-blue-600 font-medium">Scanned ID:</p>
+            <p className="text-lg font-mono text-blue-900">{employeeId}</p>
           </div>
         )}
 
