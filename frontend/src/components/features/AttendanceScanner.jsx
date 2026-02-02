@@ -141,6 +141,11 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
 
   // Camera QR scan logic
   const startCameraScan = () => {
+    if (!cameraRef.current) {
+      console.error('Camera ref not ready')
+      return
+    }
+    
     setIsScanning(true)
     loadHtml5QrcodeScript(() => {
       if (!window.Html5Qrcode) {
@@ -152,7 +157,14 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
         html5QrcodeScannerRef.current.stop().catch(()=>{})
         html5QrcodeScannerRef.current = null
       }
-      const qr = new window.Html5Qrcode(cameraRef.current.id)
+      
+      if (!cameraRef.current) {
+        console.error('Camera ref lost during initialization')
+        setIsScanning(false)
+        return
+      }
+      
+      const qr = new window.Html5Qrcode('qr-reader')
       html5QrcodeScannerRef.current = qr
       qr.start(
         { facingMode: 'environment' },
@@ -170,9 +182,10 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
           // Keep camera running for next scan
         },
         (err) => {}
-      ).catch(() => {
+      ).catch((err) => {
+        console.error('Camera start error:', err)
         setIsScanning(false)
-        showToast('Unable to access camera', 'error')
+        showToast('Unable to access camera. Please grant camera permissions.', 'error')
       })
     })
   }
@@ -187,9 +200,13 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
 
   // Auto-start camera when component mounts
   useEffect(() => {
-    startCameraScan()
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      startCameraScan()
+    }, 100)
     
     return () => {
+      clearTimeout(timer)
       stopCameraScan()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -206,7 +223,7 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
         <div className="mt-2 mb-4 bg-slate-50 rounded-lg p-4">
           <div ref={cameraRef} id="qr-reader" style={{ width: '100%', maxWidth: 400, margin: '0 auto' }} />
           <p className="text-center text-sm text-slate-600 mt-3">
-            {isLoading ? 'Processing...' : 'Point camera at QR code to scan'}
+            {isLoading ? 'Processing...' : isScanning ? 'Camera active - Point at QR code' : 'Initializing camera...'}
           </p>
         </div>
 
