@@ -8,8 +8,17 @@ export const login = async (username, password) => {
   })
 
   if (response.data && response.data.token) {
+    const user = response.data.user
+      ? {
+          ...response.data.user,
+          role:
+            typeof response.data.user.role === 'string'
+              ? response.data.user.role.toLowerCase()
+              : response.data.user.role,
+        }
+      : null
     localStorage.setItem('token', response.data.token)
-    localStorage.setItem('user', JSON.stringify(response.data.user))
+    localStorage.setItem('user', JSON.stringify(user))
   }
 
   return response.data
@@ -24,7 +33,11 @@ export const logout = () => {
 export const getCurrentUser = () => {
   const userStr = localStorage.getItem('user')
   if (userStr) {
-    return JSON.parse(userStr)
+    const user = JSON.parse(userStr)
+    if (user && typeof user.role === 'string') {
+      return { ...user, role: user.role.toLowerCase() }
+    }
+    return user
   }
   return null
 }

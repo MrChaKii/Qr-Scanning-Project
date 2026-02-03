@@ -6,6 +6,7 @@ import { Spinner } from './ui/Spinner'
 export const ProtectedRoute = ({ children, requiredRole }) => {
   const { isAuthenticated, isLoading, user } = useAuth()
   const location = useLocation()
+  const role = (user?.role || '').toLowerCase()
 
   if (isLoading) {
     return (
@@ -26,9 +27,9 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
   }
 
   // Check if a specific role is required and if user has that role
-  if (requiredRole && user?.role !== requiredRole) {
+  if (requiredRole && role !== String(requiredRole).toLowerCase()) {
     // Redirect security users to their scan page
-    if (user?.role === 'security') {
+    if (role === 'security') {
       return (
         <Navigate
           to="/security/scan"
@@ -38,10 +39,10 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
     }
     
     // Redirect process users to their dashboard
-    if (user?.role === 'process') {
+    if (role === 'process') {
       return (
         <Navigate
-          to="/process/dashboard"
+          to="/process/scan"
           replace
         />
       )

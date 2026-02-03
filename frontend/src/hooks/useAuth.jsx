@@ -11,16 +11,26 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const normalizeUser = (u) => {
+    if (!u) return null
+    const role = typeof u.role === 'string' ? u.role.toLowerCase() : u.role
+    return { ...u, role }
+  }
+
   useEffect(() => {
     const currentUser = getCurrentUser()
-    setUser(currentUser)
+    setUser(normalizeUser(currentUser))
     setIsLoading(false)
   }, [])
 
   const login = async (email, password) => {
     const response = await loginService(email, password)
-    setUser(response.user)
-    return response
+    const normalized = {
+      ...response,
+      user: normalizeUser(response.user),
+    }
+    setUser(normalized.user)
+    return normalized
   }
 
   const logout = () => {
