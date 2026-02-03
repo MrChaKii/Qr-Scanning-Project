@@ -1,22 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
 import { Button } from '../ui/Button'
 import { QrCode, CheckCircle, XCircle } from 'lucide-react'
 import { scanAttendance } from '../../services/attendance.service'
 import { toggleProcessWorkSession } from '../../services/scan.service'
 import { useToast } from '../../hooks/useToast'
-
-// Dynamically load html5-qrcode script if not present
-function loadHtml5QrcodeScript(cb) {
-  if (window.Html5Qrcode) {
-    cb();
-    return;
-  }
-  const script = document.createElement('script');
-  script.src = 'https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js';
-  script.onload = cb;
-  document.body.appendChild(script);
-}
 
 
 export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
@@ -115,91 +104,88 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
     }
     
     console.log('Camera element ready')
-    setIsScanning(true)
     setCameraError(null)
-    
-    loadHtml5QrcodeScript(() => {
-      console.log('Html5Qrcode script loaded')
-      
-      if (!window.Html5Qrcode) {
-        console.error('Html5Qrcode not available')
-        showToast('QR scanner failed to load', 'error')
-        setIsScanning(false)
-        setCameraError('Scanner library failed to load')
-        return
-      }
-      
-      if (!isMountedRef.current) {
-        console.log('Component unmounted; aborting camera start')
-        return
-      }
-      
-      if (html5QrcodeScannerRef.current) {
-        console.log('Stopping existing scanner')
-        html5QrcodeScannerRef.current.stop().catch(()=>{})
-        html5QrcodeScannerRef.current = null
-      }
-      
-      if (!cameraRef.current) {
-        console.error('Camera element lost during initialization')
-        setIsScanning(false)
-        setCameraError('Camera element lost')
-        return
-      }
-      
-      console.log('Creating Html5Qrcode instance')
-      const qr = new window.Html5Qrcode('qr-reader')
-      html5QrcodeScannerRef.current = qr
-      
-      console.log('Requesting camera access...')
-      qr.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: 250 },
-        (decodedText) => {
-          console.log('QR Code detected:', decodedText)
-          const decoded = decodedText
-          setEmployeeId(decoded)
 
-          if (mode === 'workSession') {
-            handleProcessToggle(decoded)
-          } else {
-            // Auto-scan for attendance mode
-            handleAutoScan(decoded)
-          }
-          // Keep camera running for next scan
-        },
-        (err) => {
-          // Scanning errors are normal (no QR in view), don't log them
+    // Camera APIs require secure context (HTTPS) except localhost
+    if (!window.isSecureContext) {
+      const host = window.location.hostname
+      const isLocalhost = host === 'localhost' || host === '127.0.0.1'
+      if (!isLocalhost) {
+        const msg = 'Camera requires HTTPS. Open the site over HTTPS to use the scanner.'
+        setCameraError(msg)
+        setIsScanning(false)
+        return
+      }
+    }
+
+    if (!isMountedRef.current) {
+      console.log('Component unmounted; aborting camera start')
+      return
+    }
+
+    if (html5QrcodeScannerRef.current) {
+      console.log('Stopping existing scanner')
+      html5QrcodeScannerRef.current.stop().catch(() => {})
+      html5QrcodeScannerRef.current = null
+    }
+
+    console.log('Creating Html5Qrcode instance')
+    const qr = new Html5Qrcode('qr-reader')
+    html5QrcodeScannerRef.current = qr
+
+    console.log('Requesting camera access...')
+    qr.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        console.log('QR Code detected:', decodedText)
+        const decoded = decodedText
+        setEmployeeId(decoded)
+
+        if (mode === 'workSession') {
+          handleProcessToggle(decoded)
+        } else {
+          handleAutoScan(decoded)
         }
-      ).then(() => {
+      },
+      () => {
+        // Scanning errors are normal (no QR in view)
+      }
+    )
+      .then(() => {
         console.log('Camera started successfully')
         setIsScanning(true)
         setCameraError(null)
-      }).catch((err) => {
+      })
+      .catch((err) => {
         console.error('Camera start error:', err)
         setIsScanning(false)
-        const errorMsg = err.message || String(err)
+        const errorMsg = err?.message || String(err)
         setCameraError(errorMsg)
-        
-        if (errorMsg.includes('Permission') || errorMsg.includes('NotAllowedError')) {
-          showToast('Camera access denied. Please allow camera permissions.', 'error')
+
+        // Common cases: permission denied or browser requires a user gesture.
+        if (errorMsg.includes('NotAllowedError') || errorMsg.toLowerCase().includes('permission')) {
+          showToast('Camera blocked. Click “Retry Camera” and allow permissions.', 'error')
         } else if (errorMsg.includes('NotFoundError') || errorMsg.includes('NotReadableError')) {
-          showToast('No camera found or camera is in use by another app.', 'error')
+          showToast('No camera found or camera is busy.', 'error')
         } else {
           showToast('Unable to access camera. Please check permissions.', 'error')
         }
       })
-    })
   }
 
   const stopCameraScan = () => {
     console.log('Stopping camera scan')
     setIsScanning(false)
     if (html5QrcodeScannerRef.current) {
-      html5QrcodeScannerRef.current.stop().catch((err) => {
-        console.log('Camera stop error (may be already stopped):', err)
-      })
+      const instance = html5QrcodeScannerRef.current
       html5QrcodeScannerRef.current = null
+      instance
+        .stop()
+        .then(() => instance.clear())
+        .catch((err) => {
+          console.log('Camera stop/clear error (may be already stopped):', err)
+        })
     }
   }
 
@@ -234,7 +220,11 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
       <div className="space-y-4">
         {/* Camera View - Always Displayed */}
         <div className="mt-2 mb-4 bg-slate-50 rounded-lg p-4">
-          <div ref={cameraRef} id="qr-reader" style={{ width: '100%', maxWidth: 400, margin: '0 auto' }} />
+          <div
+            ref={cameraRef}
+            id="qr-reader"
+            style={{ width: '100%', maxWidth: 520, minHeight: 320, margin: '0 auto' }}
+          />
           <p className="text-center text-sm text-slate-600 mt-3">
             {isLoading
               ? 'Processing...'
