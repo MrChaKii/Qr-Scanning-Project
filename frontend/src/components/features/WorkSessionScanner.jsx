@@ -183,24 +183,19 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
   }, []);
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
-      <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-slate-200">
+      <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 flex items-center">
         <QrCode className="w-5 h-5 mr-2 text-blue-600" />
         Work Session Scanner
       </h3>
 
       <div className="space-y-4">
         {/* Camera View - Always Displayed */}
-        <div className="mt-2 mb-4 bg-slate-50 rounded-lg p-4">
+        <div className="mt-2 mb-4 bg-slate-50 rounded-lg p-3 sm:p-4">
           <div
             ref={cameraRef}
             id="work-session-qr-reader"
-            style={{
-              width: "100%",
-              maxWidth: 520,
-              minHeight: 320,
-              margin: "0 auto",
-            }}
+            className="mx-auto w-full max-w-full sm:max-w-130 h-[55vh] max-h-115 min-h-65 overflow-hidden rounded-md bg-white [&_video]:w-full! [&_video]:h-full! [&_video]:object-cover [&_canvas]:w-full! [&_canvas]:h-full! [&_canvas]:object-cover **:max-w-full"
           />
 
           <p className="text-center text-sm text-slate-600 mt-3">
@@ -218,7 +213,7 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
               <Button
                 variant="primary"
                 onClick={startCameraScan}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
               >
                 Retry Camera
               </Button>
@@ -239,7 +234,7 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
             variant="primary"
             onClick={() => handleAutoScan()}
             disabled={isLoading}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
           >
             {isLoading ? "Processing..." : "Submit"}
           </Button>

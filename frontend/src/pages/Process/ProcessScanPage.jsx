@@ -1,10 +1,7 @@
 import React from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { WorkSessionScanner } from '../../components/features/WorkSessionScanner'
-import { Card } from '../../components/ui/Card'
-import { ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '../../components/ui/Button'
 
 export const ProcessScanPage = () => {
   const navigate = useNavigate()
@@ -20,7 +17,7 @@ export const ProcessScanPage = () => {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-slate-50 p-6">
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
         <div className="max-w-4xl mx-auto">
           {/* Header
           <div className="mb-6 flex items-center gap-4">
@@ -34,8 +31,8 @@ export const ProcessScanPage = () => {
             </Button>
           </div> */}
 
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-slate-900">
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
               Process Scanner
             </h1>
             <p className="text-slate-600 mt-2">
@@ -43,12 +40,7 @@ export const ProcessScanPage = () => {
             </p>
           </div>
 
-          {/* Scanner Component */}
-          <Card className="bg-white shadow-lg">
-            <div className="p-6">
-              <WorkSessionScanner onScanSuccess={handleScanSuccess} />
-            </div>
-          </Card>
+          <WorkSessionScanner onScanSuccess={handleScanSuccess} />
 
           {/* Help Section */}
           {/* <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">

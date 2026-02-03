@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { User } from 'lucide-react'
+import { LogOut, User } from 'lucide-react'
 import { getProcessesByUser } from '../../services/process.service'
+import { Button } from '../ui/Button'
 
 export const Header = () => {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const [processName, setProcessName] = useState(null)
 
   useEffect(() => {
@@ -41,12 +42,24 @@ export const Header = () => {
   }, [processName, user?.role])
 
   return (
-    <header className="fixed top-0 right-0 left-0 h-16 bg-white border-b border-slate-200 shadow-sm z-10 px-6 flex items-center justify-between">
-      <h2 className="text-lg font-semibold text-slate-800">{headerTitle}</h2>
+    <header className="fixed top-0 right-0 left-0 h-16 bg-white border-b border-slate-200 shadow-sm z-10 px-4 sm:px-6 flex items-center justify-between gap-4">
+      <h2 className="text-base sm:text-lg font-semibold text-slate-800 truncate flex-1 min-w-0">
+        {headerTitle}
+      </h2>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-4 shrink-0">
+        <Button
+          variant="secondary"
+          onClick={logout}
+          className="flex items-center gap-2"
+          aria-label="Logout"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="hidden sm:inline">Logout</span>
+        </Button>
+
         <div className="flex items-center space-x-3">
-          <div className="text-right">
+          <div className="text-right hidden sm:block">
             <p className="text-sm font-medium text-slate-900">
               {user?.name}
             </p>
