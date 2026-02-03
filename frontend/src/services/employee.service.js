@@ -27,3 +27,9 @@ export const deleteEmployee = async (id) => {
   // The backend returns a message, not a success boolean
   return response.data;
 }
+
+// Fetch the QR id (UUID) used for scanning for a given employee Mongo _id
+export const getEmployeeQrId = async (employeeMongoId) => {
+  const response = await api.get(`/api/qr/employee/${employeeMongoId}`)
+  return response.data?.qrId
+}

@@ -15,6 +15,11 @@ export const getProcessesByCompany = async (companyId) => {
   return response.data.data;
 };
 
+export const getProcessesByUser = async (userId) => {
+  const response = await api.get(`/api/processes/user/${userId}`);
+  return response.data.data;
+};
+
 export const createProcess = async (process) => {
   const response = await api.post('/api/processes', process);
   return response.data.process;

@@ -4,13 +4,14 @@ import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { QRCodeDisplay } from '../../components/features/QRCodeDisplay'
-import { getEmployee } from '../../services/employee.service'
+import { getEmployee, getEmployeeQrId } from '../../services/employee.service'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
 export const EmployeeDetailPage = () => {
   const { id } = useParams()
   const [employee, setEmployee] = useState(null)
+  const [qrValue, setQrValue] = useState('')
   const [isLoading, setIsLoading] = useState(true)
 
   const navigate = useNavigate()
@@ -22,6 +23,16 @@ export const EmployeeDetailPage = () => {
       try {
         const data = await getEmployee(id)
         setEmployee(data)
+
+        // Prefer the backend-issued QR id for scanning.
+        // This is what the attendance endpoints expect.
+        try {
+          const qrId = await getEmployeeQrId(data._id)
+          if (qrId) setQrValue(qrId)
+        } catch (err) {
+          console.error('Failed to fetch employee QR id', err)
+          setQrValue('')
+        }
       } catch (error) {
         console.error('Failed to fetch employee', error)
       } finally {
@@ -129,14 +140,7 @@ export const EmployeeDetailPage = () => {
           <Card title="Identity QR Code">
             <div className="flex justify-center py-4">
               <QRCodeDisplay
-                value={JSON.stringify({
-                  employeeId: employee.employeeId,
-                  name: employee.name,
-                  employeeType: employee.employeeType,
-                  companyId: employee.companyId?._id || employee.companyId,
-                  isActive: employee.isActive,
-                  createdAt: employee.createdAt
-                })}
+                value={qrValue || employee.employeeId}
                 label={employee.name}
                 employeeId={employee.employeeId}
                 name={employee.name}

@@ -1,5 +1,31 @@
 import api from './api'
 
+const tryParseJson = (value) => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) return null
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    return null
+  }
+}
+
+const tryDecodeBase64Json = (value) => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  // Quick heuristic: base64 is usually longer and only has these chars.
+  if (!/^[A-Za-z0-9+/=]+$/.test(trimmed)) return null
+  try {
+    const json = atob(trimmed)
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
+
 export const getAttendance = async (date) => {
   const response = await api.get('/api/attendance', {
     params: { date },
@@ -10,6 +36,37 @@ export const getAttendance = async (date) => {
 // Accepts either a QRCode _id/code or employeeId
 export const scanAttendance = async (input, scanType) => {
   let qrId = input;
+
+  // 1) Some QR codes in this app are generated as JSON strings.
+  //    Example: { employeeId: 'EMP001', ... }
+  const parsedJson = tryParseJson(qrId)
+  if (parsedJson && typeof parsedJson === 'object') {
+    // Prefer business employeeId when present (e.g. EMP001)
+    if (typeof parsedJson.employeeId === 'string' && parsedJson.employeeId.trim()) {
+      qrId = parsedJson.employeeId.trim()
+    } else if (typeof parsedJson.qrId === 'string' && parsedJson.qrId.trim()) {
+      qrId = parsedJson.qrId.trim()
+    }
+  }
+
+  // 2) Backend-generated QR images may encode a base64 JSON payload.
+  //    If so, extract employeeId and resolve to a QR id.
+  const parsedBase64 = !parsedJson ? tryDecodeBase64Json(qrId) : null
+  if (parsedBase64 && typeof parsedBase64 === 'object') {
+    const payloadEmployeeId = parsedBase64.employeeId
+    // If payload has a Mongo ObjectId for employee, resolve QR directly.
+    if (typeof payloadEmployeeId === 'string' && /^[a-fA-F0-9]{24}$/.test(payloadEmployeeId)) {
+      try {
+        const qrRes = await api.get(`/api/qr/employee/${payloadEmployeeId}`)
+        if (qrRes?.data?.qrId) {
+          qrId = qrRes.data.qrId
+        }
+      } catch (err) {
+        console.error('Error resolving QR code from base64 payload:', err)
+      }
+    }
+  }
+
   // If input looks like an employeeId (starts with EMP or is not a valid ObjectId/UUID), fetch QRCode for employee
   if (typeof qrId === 'string' && (qrId.startsWith('EMP') || qrId.length < 24)) {
     // Try to fetch QRCode for employee

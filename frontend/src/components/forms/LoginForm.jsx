@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 export const LoginForm = () => {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
 
   const { login } = useAuth()
@@ -25,7 +26,7 @@ export const LoginForm = () => {
     setIsLoading(true)
 
     try {
-      const response = await login(username, password)
+      const response = await login(username, password, rememberMe)
       showToast('Login successful', 'success')
       const role = (response.user?.role || '').toLowerCase()
       
@@ -69,6 +70,8 @@ export const LoginForm = () => {
             id="remember-me"
             name="remember-me"
             type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
           />
           <label
