@@ -6,7 +6,7 @@ import Process from '../models/Process.js';
 // Login
 export const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, rememberMe = true } = req.body;
 
     const user = await User.findOne({ username, isActive: true });
     if (!user) {
@@ -21,7 +21,7 @@ export const login = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: rememberMe ? '365d' : '24h' }
     );
 
     res.json({

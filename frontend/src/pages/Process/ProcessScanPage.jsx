@@ -1,6 +1,6 @@
 import React from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
-import { AttendanceScanner } from '../../components/features/AttendanceScanner'
+import { WorkSessionScanner } from '../../components/features/WorkSessionScanner'
 import { Card } from '../../components/ui/Card'
 import { ArrowLeft } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -46,19 +46,19 @@ export const ProcessScanPage = () => {
           {/* Scanner Component */}
           <Card className="bg-white shadow-lg">
             <div className="p-6">
-              <AttendanceScanner onScanSuccess={handleScanSuccess} mode="workSession" />
+              <WorkSessionScanner onScanSuccess={handleScanSuccess} />
             </div>
           </Card>
 
           {/* Help Section */}
-          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          {/* <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 className="font-semibold text-blue-900 mb-2">Tips:</h3>
             <ul className="space-y-1 text-sm text-blue-800">
               <li>• Ensure the QR code is well-lit and clearly visible</li>
               <li>• Hold the QR code steady in front of the camera</li>
               <li>• You can also manually enter the Employee ID if needed</li>
             </ul>
-          </div>
+          </div> */}
         </div>
       </div>
     </DashboardLayout>

@@ -23,8 +23,8 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(false)
   }, [])
 
-  const login = async (email, password) => {
-    const response = await loginService(email, password)
+  const login = async (username, password, rememberMe = true) => {
+    const response = await loginService(username, password, rememberMe)
     const normalized = {
       ...response,
       user: normalizeUser(response.user),

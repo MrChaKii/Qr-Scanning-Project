@@ -1,10 +1,11 @@
 import api from './api'
 
 
-export const login = async (username, password) => {
+export const login = async (username, password, rememberMe = true) => {
   const response = await api.post('/api/auth/login', {
     username,
     password,
+    rememberMe,
   })
 
   if (response.data && response.data.token) {

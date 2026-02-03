@@ -1,15 +1,48 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { User } from 'lucide-react'
+import { getProcessesByUser } from '../../services/process.service'
 
 export const Header = () => {
   const { user } = useAuth()
+  const [processName, setProcessName] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const load = async () => {
+      if (!user?.id || user?.role !== 'process') {
+        setProcessName(null)
+        return
+      }
+
+      try {
+        const processes = await getProcessesByUser(user.id)
+        const name = processes?.[0]?.processName || null
+        if (!cancelled) setProcessName(name)
+      } catch {
+        if (!cancelled) setProcessName(null)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id, user?.role])
+
+  const headerTitle = useMemo(() => {
+    if (processName) return processName
+
+    const role = user?.role
+    if (!role) return 'Portal'
+    const roleLabel = role.charAt(0).toUpperCase() + role.slice(1)
+    return `${roleLabel} Portal`
+  }, [processName, user?.role])
 
   return (
-    <header className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-slate-200 shadow-sm z-10 px-6 flex items-center justify-between">
-      <h2 className="text-lg font-semibold text-slate-800">
-        Admin Portal
-      </h2>
+    <header className="fixed top-0 right-0 left-0 h-16 bg-white border-b border-slate-200 shadow-sm z-10 px-6 flex items-center justify-between">
+      <h2 className="text-lg font-semibold text-slate-800">{headerTitle}</h2>
 
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-3">
