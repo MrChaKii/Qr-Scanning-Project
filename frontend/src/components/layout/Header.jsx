@@ -4,7 +4,7 @@ import { LogOut, User } from 'lucide-react'
 import { getProcessesByUser } from '../../services/process.service'
 import { Button } from '../ui/Button'
 
-export const Header = () => {
+export const Header = ({ withSidebar = false }) => {
   const { user, logout } = useAuth()
   const [processName, setProcessName] = useState(null)
 
@@ -42,7 +42,11 @@ export const Header = () => {
   }, [processName, user?.role])
 
   return (
-    <header className="fixed top-0 right-0 left-0 h-16 bg-white border-b border-slate-200 shadow-sm z-10 px-4 sm:px-6 flex items-center justify-between gap-4">
+    <header
+      className={`fixed top-0 right-0 h-16 bg-white border-b border-slate-200 shadow-sm z-10 px-4 sm:px-6 flex items-center justify-between gap-4 ${
+        withSidebar ? 'left-64' : 'left-0'
+      }`}
+    >
       <h2 className="text-base sm:text-lg font-semibold text-slate-800 truncate flex-1 min-w-0">
         {headerTitle}
       </h2>
