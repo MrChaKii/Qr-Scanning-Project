@@ -4,13 +4,14 @@ import { useAuth } from '../hooks/useAuth'
 
 export const RoleBasedRedirect = () => {
   const { user } = useAuth()
+  const role = (user?.role || '').toLowerCase()
 
   // Redirect based on user role
-  if (user?.role === 'security') {
+  if (role === 'security') {
     return <Navigate to="/security/scan" replace />
   }
 
-  if (user?.role === 'process') {
+  if (role === 'process') {
     return <Navigate to="/process/scan" replace />
   }
 

@@ -27,13 +27,12 @@ export const LoginForm = () => {
     try {
       const response = await login(username, password)
       showToast('Login successful', 'success')
+      const role = (response.user?.role || '').toLowerCase()
       
       // Redirect based on user role
-      if (response.user?.role === 'security') {
-        navigate('/security/scan')
-      } else {
-        navigate('/dashboard')
-      }
+      if (role === 'security') return navigate('/security/scan', { replace: true })
+      if (role === 'process') return navigate('/process/scan', { replace: true })
+      return navigate('/dashboard', { replace: true })
     } catch (error) {
       showToast(
         error?.response?.data?.error || 'Invalid credentials',
