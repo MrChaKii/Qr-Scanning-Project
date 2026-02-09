@@ -34,19 +34,26 @@ export const getAttendance = async (date) => {
 }
 
 // Accepts either a QRCode _id/code or employeeId
-export const scanAttendance = async (input, scanType) => {
+// Added employeeIdOverride parameter for manpower QR codes
+export const scanAttendance = async (input, scanType, employeeIdOverride = null) => {
   let qrId = input;
-  let employeeObjectId = null
+  let employeeObjectId = employeeIdOverride // Use override if provided
 
   // 1) Some QR codes in this app are generated as JSON strings.
-  //    Example: { employeeId: 'EMP001', ... }
+  //    Example: { qrId: 'abc123', employeeId: '507f1f77bcf86cd799439011' }
   const parsedJson = tryParseJson(qrId)
   if (parsedJson && typeof parsedJson === 'object') {
-    // Prefer business employeeId when present (e.g. EMP001)
-    if (typeof parsedJson.employeeId === 'string' && parsedJson.employeeId.trim()) {
-      qrId = parsedJson.employeeId.trim()
-    } else if (typeof parsedJson.qrId === 'string' && parsedJson.qrId.trim()) {
+    // Extract qrId from JSON
+    if (typeof parsedJson.qrId === 'string' && parsedJson.qrId.trim()) {
       qrId = parsedJson.qrId.trim()
+    }
+    // Extract employeeId (MongoDB ObjectId) if present and not already overridden
+    if (!employeeObjectId && typeof parsedJson.employeeId === 'string' && /^[a-fA-F0-9]{24}$/.test(parsedJson.employeeId)) {
+      employeeObjectId = parsedJson.employeeId
+    }
+    // Fallback: If employeeId is a business ID (EMP001), keep it in qrId for resolution below
+    else if (!employeeObjectId && typeof parsedJson.employeeId === 'string' && parsedJson.employeeId.trim()) {
+      qrId = parsedJson.employeeId.trim()
     }
   }
 
@@ -57,7 +64,9 @@ export const scanAttendance = async (input, scanType) => {
     const payloadEmployeeId = parsedBase64.employeeId
     // If payload has a Mongo ObjectId for employee, resolve QR directly.
     if (typeof payloadEmployeeId === 'string' && /^[a-fA-F0-9]{24}$/.test(payloadEmployeeId)) {
-      employeeObjectId = payloadEmployeeId
+      if (!employeeObjectId) {
+        employeeObjectId = payloadEmployeeId
+      }
       try {
         const qrRes = await api.get(`/api/qr/employee/${payloadEmployeeId}`)
         if (qrRes?.data?.qrId) {
@@ -104,12 +113,24 @@ export const scanAttendance = async (input, scanType) => {
       throw new Error(errorMsg);
     }
   }
-  const response = await api.post('/api/attendance/scan', {
+
+  // Build the request payload
+  const payload = {
     context: 'SECURITY',
     qrId,
-    scanType,
-    employeeId: employeeObjectId,
-  })
+  }
+
+  // Add scanType if provided
+  if (scanType) {
+    payload.scanType = scanType
+  }
+
+  // Add employeeId if we have one (for manpower QR codes)
+  if (employeeObjectId) {
+    payload.employeeId = employeeObjectId
+  }
+
+  const response = await api.post('/api/attendance/scan', payload)
   return response.data.attendance || response.data;
 }
 
@@ -119,4 +140,3 @@ export const getDailySummary = async (date) => {
   })
   return response.data
 }
-

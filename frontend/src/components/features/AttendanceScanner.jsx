@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { Button } from '../ui/Button'
@@ -31,11 +30,24 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
     setIsLoading(true)
 
     try {
-      const cleanId = raw
-      console.log('Auto scanning attendance for:', cleanId)
+      let cleanId = raw
+      let employeeIdFromQR = null
+
+      // Parse QR data if it's JSON
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed.qrId) {
+          cleanId = parsed.qrId
+          employeeIdFromQR = parsed.employeeId || null
+        }
+      } catch {
+        // Not JSON, use raw value as-is
+      }
+
+      console.log('Auto scanning attendance for:', cleanId, 'with employeeId:', employeeIdFromQR)
       
-      // Don't pass scanType - let backend auto-toggle
-      const result = await scanAttendance(cleanId, null)
+      // Pass employeeId to backend if available
+      const result = await scanAttendance(cleanId, null, employeeIdFromQR)
 
       setLastScan(result)
       const action = result.scanType === 'IN' ? 'IN' : 'OUT'
@@ -165,7 +177,7 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
 
         // Common cases: permission denied or browser requires a user gesture.
         if (errorMsg.includes('NotAllowedError') || errorMsg.toLowerCase().includes('permission')) {
-          showToast('Camera blocked. Click “Retry Camera” and allow permissions.', 'error')
+          showToast('Camera blocked. Click "Retry Camera" and allow permissions.', 'error')
         } else if (errorMsg.includes('NotFoundError') || errorMsg.includes('NotReadableError')) {
           showToast('No camera found or camera is busy.', 'error')
         } else {
