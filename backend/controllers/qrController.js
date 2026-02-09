@@ -40,39 +40,40 @@ export const generateQR = async (req, res) => {
       } else {
         // Shared QR for manpower: one per company
         qrType = 'manpower';
-        qrDoc = await QRCodeModel.findOne({ companyId: company._id, qrType });
+        // qrDoc = await QRCodeModel.findOne({ companyId: company._id, qrType });
         if (!qrDoc) {
           qrId = uuidv4();
           qrDoc = await QRCodeModel.create({
             qrId,
             companyId: company._id,
             companyName: company.companyName,
-            employeeId: null,
+            employeeId: employee._id,
             qrType,
           });
         }
       }
-    } else {
-      // Manpower QR (shared per company)
-      qrType = 'manpower';
-      qrDoc = await QRCodeModel.findOne({ companyId: company._id, qrType });
-      if (!qrDoc) {
-        qrId = uuidv4();
-        qrDoc = await QRCodeModel.create({
-          qrId,
-          companyId: company._id,
-          companyName: company.companyName,
-          employeeId: null,
-          qrType,
-        });
-      }
-    }
+    } 
+    // else {
+    //   // Manpower QR (shared per company)
+    //   qrType = 'manpower';
+    //   qrDoc = await QRCodeModel.findOne({ companyId: company._id, qrType });
+    //   if (!qrDoc) {
+    //     qrId = uuidv4();
+    //     qrDoc = await QRCodeModel.create({
+    //       qrId,
+    //       companyId: company._id,
+    //       companyName: company.companyName,
+    //       employeeId: null,
+    //       qrType,
+    //     });
+    //   }
+    // }
 
     // Prepare payload
     const payload = createQRPayload({
       companyId: company._id,
       companyName: company.companyName,
-      employeeId: employee ? employee._id : null
+      employeeId: employee._id,
     });
 
     // Generate QR image
