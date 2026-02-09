@@ -4,7 +4,6 @@ import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
 
 // POST /api/attendance/scan
-// POST /api/attendance/scan
 export const scanAtSecurity = async (req, res) => {
   console.log('🔍 scanAtSecurity called with:', req.body);
   try {
@@ -17,6 +16,11 @@ export const scanAtSecurity = async (req, res) => {
     // Validate context if it's required
     if (!context) {
       return res.status(400).json({ message: 'context is required' });
+    }
+
+    // AttendanceLog.scanLocation is currently restricted to SECURITY
+    if (context !== 'SECURITY') {
+      return res.status(400).json({ message: 'Invalid context. Expected SECURITY' });
     }
 
     // Try to find QRCode by _id (MongoDB ObjectId), if fails, try by qrId field (UUID)
@@ -45,6 +49,15 @@ export const scanAtSecurity = async (req, res) => {
         return res.status(400).json({ message: 'Employee does not belong to this company' });
       }
       employeeId = employee._id;
+    }
+
+    // Do not allow attendance scans without a specific employee.
+    // This prevents AttendanceLog.employeeId from being saved as null.
+    if (!employeeId) {
+      return res.status(400).json({
+        message:
+          'This QR code is not linked to a specific employee. Please scan an employee QR code, or include a valid employeeId override.',
+      });
     }
 
     const now = new Date();

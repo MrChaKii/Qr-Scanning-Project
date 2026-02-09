@@ -1,14 +1,12 @@
-
 import React, { useState, useRef, useEffect } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { Button } from '../ui/Button'
 import { QrCode, CheckCircle, XCircle } from 'lucide-react'
 import { scanAttendance } from '../../services/attendance.service'
-import { toggleProcessWorkSession } from '../../services/scan.service'
 import { useToast } from '../../hooks/useToast'
 
 
-export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
+export const AttendanceScanner = ({ onScanSuccess }) => {
   const [employeeId, setEmployeeId] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [lastScan, setLastScan] = useState(null)
@@ -22,6 +20,8 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
 
   // Auto scan with toggle (no type needed - backend determines IN/OUT)
   const handleAutoScan = async (valueOverride) => {
+    if (isLoading) return
+
     const raw = (valueOverride ?? employeeId).trim()
     if (!raw) {
       showToast('Please scan a QR code', 'warning')
@@ -31,11 +31,31 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
     setIsLoading(true)
 
     try {
-      const cleanId = raw
-      console.log('Auto scanning attendance for:', cleanId)
+      let cleanId = raw
+      let employeeIdFromQR = null
+
+      // Parse QR data if it's JSON
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed.qrId) {
+          cleanId = parsed.qrId
+          // Only pass an employee override if it's a Mongo ObjectId.
+          const candidate =
+            (typeof parsed.employeeId === 'string' && parsed.employeeId) ||
+            (typeof parsed.employeeId === 'object' && parsed.employeeId?._id) ||
+            null
+          if (typeof candidate === 'string' && /^[a-fA-F0-9]{24}$/.test(candidate)) {
+            employeeIdFromQR = candidate
+          }
+        }
+      } catch {
+        // Not JSON, use raw value as-is
+      }
+
+      console.log('Auto scanning attendance for:', cleanId, 'with employeeId:', employeeIdFromQR)
       
-      // Don't pass scanType - let backend auto-toggle
-      const result = await scanAttendance(cleanId, null)
+      // Pass employeeId to backend if available
+      const result = await scanAttendance(cleanId, null, employeeIdFromQR)
 
       setLastScan(result)
       const action = result.scanType === 'IN' ? 'IN' : 'OUT'
@@ -50,44 +70,6 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
       const errorMessage = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Failed to scan attendance'
       showToast(errorMessage, 'error')
       setEmployeeId('') // Clear on error too
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleProcessToggle = async (valueOverride) => {
-    const raw = (valueOverride ?? employeeId).trim()
-    if (!raw) {
-      showToast('Please scan a QR code or enter an Employee ID', 'warning')
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      const result = await toggleProcessWorkSession(raw)
-
-      setLastScan({
-        scanType: result.scanType,
-        scanTime: result.scanTime,
-        processName: result.processName || result.session?.processName,
-      })
-
-      const action = result.scanType === 'IN' ? 'started' : 'ended'
-      const proc = result.processName || result.session?.processName
-      showToast(`Session ${action}${proc ? ` (${proc})` : ''}`, 'success')
-      setEmployeeId('')
-
-      if (onScanSuccess) {
-        onScanSuccess(result)
-      }
-    } catch (error) {
-      const errorMessage =
-        error?.response?.data?.error ||
-        error?.response?.data?.message ||
-        error?.message ||
-        'Failed to record session'
-      showToast(errorMessage, 'error')
     } finally {
       setIsLoading(false)
     }
@@ -142,11 +124,7 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
         const decoded = decodedText
         setEmployeeId(decoded)
 
-        if (mode === 'workSession') {
-          handleProcessToggle(decoded)
-        } else {
-          handleAutoScan(decoded)
-        }
+        handleAutoScan(decoded)
       },
       () => {
         // Scanning errors are normal (no QR in view)
@@ -165,7 +143,7 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
 
         // Common cases: permission denied or browser requires a user gesture.
         if (errorMsg.includes('NotAllowedError') || errorMsg.toLowerCase().includes('permission')) {
-          showToast('Camera blocked. Click “Retry Camera” and allow permissions.', 'error')
+          showToast('Camera blocked. Click "Retry Camera" and allow permissions.', 'error')
         } else if (errorMsg.includes('NotFoundError') || errorMsg.includes('NotReadableError')) {
           showToast('No camera found or camera is busy.', 'error')
         } else {
@@ -191,7 +169,7 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
 
   // Auto-start camera when component mounts
   useEffect(() => {
-    console.log('AttendanceScanner mounted, mode:', mode)
+    console.log('AttendanceScanner mounted')
     isMountedRef.current = true
     
     // Small delay to ensure DOM is ready
@@ -214,7 +192,7 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
     <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-slate-200">
       <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-4 flex items-center">
         <QrCode className="w-5 h-5 mr-2 text-blue-600" />
-        {mode === 'workSession' ? 'Process Scanner' : 'Attendance Scanner'}
+        Attendance Scanner
       </h3>
 
       <div className="space-y-4">
@@ -269,11 +247,6 @@ export const AttendanceScanner = ({ onScanSuccess, mode = 'attendance' }) => {
                     {lastScan.scanType}
                   </span>
                 </p>
-                {lastScan.processName && (
-                  <p className="text-sm text-slate-700">
-                    Process: <span className="font-medium">{lastScan.processName}</span>
-                  </p>
-                )}
                 <p className="text-sm text-slate-600">
                   {new Date(lastScan.scanTime).toLocaleTimeString()}
                 </p>

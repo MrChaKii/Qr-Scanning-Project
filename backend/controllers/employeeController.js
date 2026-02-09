@@ -34,25 +34,13 @@ export const createEmployee = async (req, res) => {
   try {
     const { employeeId, name, employeeType, companyId, isActive } = req.body;
 
-    // For permanent employees, employeeId is required; for manpower, must be empty/null
-    // if (employeeType === "permanent" && (!employeeId || employeeId === "")) {
-    //   return res
-    //     .status(400)
-    //     .json({ message: "Permanent employees must have an employeeId." });
-    // }
-    // if (employeeType === "manpower" && employeeId) {
-    //   return res
-    //     .status(400)
-    //     .json({ message: "Manpower employees must not have an employeeId." });
-    // }
-
     if (!employeeId || employeeId === "") {
       return res
         .status(400)
         .json({ message: "Employees must have an employeeId." });
     }
 
-    // Only check for duplicate employeeId if provided (permanent)
+    // Only check for duplicate employeeId if provided
     if (employeeId) {
       const existingEmployee = await Employee.findOne({ employeeId });
       if (existingEmployee) {
@@ -98,7 +86,7 @@ export const createEmployee = async (req, res) => {
         const payload = {
           companyId,
           companyName,
-          employeeId: employeeId || null,
+          employeeId: employeeId,
         };
         return Buffer.from(JSON.stringify(payload)).toString("base64");
       }
@@ -125,55 +113,36 @@ export const createEmployee = async (req, res) => {
         );
       }
 
+      // Determine QR type based on employee type
       if (employee.employeeType === "permanent") {
         qrType = "permanent";
-        qrId = uuidv4();
-
-        console.log("Creating QR with:", {
-          qrId,
-          companyId: company._id,
-          companyName,
-          employeeId: employee._id,
-          qrType,
-        });
-
-        qrDoc = await QRCodeModel.create({
-          qrId,
-          companyId: company._id,
-          companyName,
-          employeeId: employee._id,
-          qrType,
-        });
       } else {
         qrType = "manpower";
-        // Shared QR for manpower: one per company
-        qrDoc = await QRCodeModel.findOne({ companyId: company._id, qrType });
-        if (!qrDoc) {
-          qrId = uuidv4();
-
-          console.log("Creating QR with:", {
-            qrId,
-            companyId: company._id,
-            companyName,
-            employeeId: null,
-            qrType,
-          });
-
-          qrDoc = await QRCodeModel.create({
-            qrId,
-            companyId: company._id,
-            companyName,
-            employeeId: null,
-            qrType,
-          });
-        }
       }
+      
+      qrId = uuidv4();
 
-      // Prepare payload
+      console.log("Creating QR with:", {
+        qrId,
+        companyId: company._id,
+        companyName,
+        employeeId: employee.employeeId, // Now using business employeeId
+        qrType,
+      });
+
+      qrDoc = await QRCodeModel.create({
+        qrId,
+        companyId: company._id,
+        companyName,
+        employeeId: employee._id, // Store MongoDB _id for reference
+        qrType,
+      });
+
+      // Prepare payload using business employeeId (not MongoDB _id)
       const payload = createQRPayload({
         companyId: company._id,
         companyName,
-        employeeId: employee.employeeType === "permanent" ? employee._id : null,
+        employeeId: employee.employeeId, // Use business employeeId for QR code payload
       });
 
       // Generate QR image
@@ -244,28 +213,11 @@ export const getEmployeeById = async (req, res) => {
   }
 };
 
-// Remove getEmployeeByQR (no companyQR in model)
-
 // Update employee
 export const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-
-    // Prevent updating to invalid employeeId/employeeType combinations
-    // if (
-    //   updates.employeeType === "permanent" &&
-    //   (!updates.employeeId || updates.employeeId === "")
-    // ) {
-    //   return res
-    //     .status(400)
-    //     .json({ message: "Permanent employees must have an employeeId." });
-    // }
-    // if (updates.employeeType === "manpower" && updates.employeeId) {
-    //   return res
-    //     .status(400)
-    //     .json({ message: "Manpower employees must not have an employeeId." });
-    // }
 
     if (!updates.employeeId || updates.employeeId === "") {
       return res
@@ -273,7 +225,7 @@ export const updateEmployee = async (req, res) => {
         .json({ message: "Employees must have an employeeId." });
     }
 
-    // Only check for duplicate employeeId if provided (permanent)
+    // Only check for duplicate employeeId if provided
     if (updates.employeeId) {
       const existingEmployee = await Employee.findOne({
         employeeId: updates.employeeId,
@@ -311,17 +263,10 @@ export const deleteEmployee = async (req, res) => {
 
     const employee = await Employee.findByIdAndDelete(id);
 
-    // const employee = await Employee.findByIdAndUpdate(
-    //   id,
-    //   { isActive: false },
-    //   { new: true }
-    // );
-
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    // res.json({ message: "Employee deactivated successfully" });
     res.json({ message: "Employee deleted successfully" });
   } catch (error) {
     res.status(500).json({

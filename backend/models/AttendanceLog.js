@@ -14,7 +14,7 @@ const AttendanceLogSchema = new mongoose.Schema({
   employeeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
-    default: null
+    required: true
   },
   scanType: {
     type: String,
