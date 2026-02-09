@@ -100,21 +100,6 @@ export const EmployeeForm = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input
-        label="Employee ID"
-        value={formData.employeeId}
-        onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
-        error={errors.employeeId}
-        // disabled={formData.employeeType === 'manpower'}
-        // className={formData.employeeType === 'manpower' ? 'bg-slate-100' : ''}
-      />
-      <Input
-        label="Name"
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        error={errors.name}
-      />
-
       <div className="grid grid-cols-2 gap-4">
         <Select
           label="Employee Type"
@@ -138,6 +123,22 @@ export const EmployeeForm = ({
           error={errors.companyId}
         />
       </div>
+      <Input
+        label="Employee ID"
+        value={formData.employeeId}
+        onChange={(e) => setFormData({ ...formData, employeeId: e.target.value })}
+        error={errors.employeeId}
+        // disabled={formData.employeeType === 'manpower'}
+        // className={formData.employeeType === 'manpower' ? 'bg-slate-100' : ''}
+      />
+      <Input
+        label="Name"
+        value={formData.name}
+        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+        error={errors.name}
+      />
+
+      
 
       <div className="flex justify-end space-x-3 pt-4">
         <Button
