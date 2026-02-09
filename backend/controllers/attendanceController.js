@@ -8,7 +8,7 @@ import Company from '../models/Company.js';
 export const scanAtSecurity = async (req, res) => {
   console.log('🔍 scanAtSecurity called with:', req.body);
   try {
-    const { qrId, scanType, context } = req.body;
+    const { qrId, scanType, context, employeeId: employeeIdOverride } = req.body;
     
     if (!qrId) {
       return res.status(400).json({ message: 'qrId is required' });
@@ -32,7 +32,20 @@ export const scanAtSecurity = async (req, res) => {
     }
 
     const companyId = qr.companyId?._id || qr.companyId;
-    const employeeId = qr.employeeId?._id || qr.employeeId || null;
+    let employeeId = qr.employeeId?._id || qr.employeeId || null;
+
+    // For shared manpower QR codes, QRCode.employeeId can be null.
+    // If the QR payload included a specific employee ObjectId, prefer it.
+    if (typeof employeeIdOverride === 'string' && /^[a-fA-F0-9]{24}$/.test(employeeIdOverride)) {
+      const employee = await Employee.findById(employeeIdOverride).select('companyId');
+      if (!employee) {
+        return res.status(400).json({ message: 'Invalid employeeId' });
+      }
+      if (employee.companyId?.toString() !== companyId?.toString()) {
+        return res.status(400).json({ message: 'Employee does not belong to this company' });
+      }
+      employeeId = employee._id;
+    }
 
     const now = new Date();
     const workDate = now.toISOString().slice(0, 10); // YYYY-MM-DD
