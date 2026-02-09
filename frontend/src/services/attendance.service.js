@@ -36,6 +36,7 @@ export const getAttendance = async (date) => {
 // Accepts either a QRCode _id/code or employeeId
 export const scanAttendance = async (input, scanType) => {
   let qrId = input;
+  let employeeObjectId = null
 
   // 1) Some QR codes in this app are generated as JSON strings.
   //    Example: { employeeId: 'EMP001', ... }
@@ -56,6 +57,7 @@ export const scanAttendance = async (input, scanType) => {
     const payloadEmployeeId = parsedBase64.employeeId
     // If payload has a Mongo ObjectId for employee, resolve QR directly.
     if (typeof payloadEmployeeId === 'string' && /^[a-fA-F0-9]{24}$/.test(payloadEmployeeId)) {
+      employeeObjectId = payloadEmployeeId
       try {
         const qrRes = await api.get(`/api/qr/employee/${payloadEmployeeId}`)
         if (qrRes?.data?.qrId) {
@@ -106,6 +108,7 @@ export const scanAttendance = async (input, scanType) => {
     context: 'SECURITY',
     qrId,
     scanType,
+    employeeId: employeeObjectId,
   })
   return response.data.attendance || response.data;
 }

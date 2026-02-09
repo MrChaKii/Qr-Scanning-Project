@@ -118,7 +118,7 @@ export const AttendancePage = () => {
             <Table
               data={summary}
               columns={columns}
-              keyExtractor={(item) => item.employeeId}
+              keyExtractor={(item) => item._id || item.id}
               isLoading={isLoading}
               emptyMessage="No attendance records for this date"
             />
