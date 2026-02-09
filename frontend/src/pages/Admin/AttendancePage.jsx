@@ -50,6 +50,10 @@ export const AttendancePage = () => {
 
   const columns = [
     {
+      header: 'Employee ID',
+      accessor: 'employeeId',
+    },
+    {
       header: 'Employee',
       accessor: 'name',
     },
