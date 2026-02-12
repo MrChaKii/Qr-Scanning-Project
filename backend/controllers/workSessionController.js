@@ -2,6 +2,7 @@ import WorkSession from '../models/WorkSession.js';
 import QRCode from '../models/QRCode.js';
 import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
+import AttendanceLog from '../models/AttendanceLog.js';
 
 const isMongoObjectId = (value) => typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value);
 
@@ -87,6 +88,28 @@ export const startSession = async (req, res) => {
       if (parallelSession) {
         return res.status(400).json({
           message: 'Employee is already assigned to another open process.'
+        });
+      }
+
+      // Enforce attendance IN before starting any process work session.
+      // Rule: employee must have at least one attendance log today, and the latest log must be IN.
+      const workDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (matches attendanceController)
+      const lastAttendance = await AttendanceLog.findOne({
+        employeeId,
+        companyId,
+        workDate,
+        scanLocation: 'SECURITY'
+      }).sort({ scanTime: -1 });
+
+      if (!lastAttendance) {
+        return res.status(400).json({
+          message: 'Employee must check IN at security before starting a process.'
+        });
+      }
+
+      if (lastAttendance.scanType !== 'IN') {
+        return res.status(400).json({
+          message: 'Employee is currently checked OUT. Please check IN before starting a process.'
         });
       }
     }
