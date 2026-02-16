@@ -28,7 +28,7 @@ export const AttendancePage = () => {
       
       // Transform the API response to match the table structure
       const transformedData = data.map((item) => ({
-        employeeId: item.employee?._id || 'N/A',
+        employeeId: item.employee?.employeeId || 'N/A',
         name: item.employee?.name || 'Unknown',
         checkIn: item.firstIn?.scanTime,
         checkOut: item.lastOut?.scanTime,
