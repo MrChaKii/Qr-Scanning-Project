@@ -10,6 +10,7 @@ import {
   getManpowerDailyHoursByCompany,
   getManpowerMonthlyHoursByCompany,
 } from '../../services/analytics.service'
+import { getPublicDashboardSummary } from '../../services/public.service'
 
 const pad2 = (n) => String(n).padStart(2, '0')
 
@@ -94,25 +95,31 @@ export const AnalyticsPage = () => {
 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [summary, setSummary] = useState(null)
+
+  
 
   const load = async () => {
     setIsLoading(true)
     setError('')
 
     try {
-      const [daily, dailyAvg, monthly] = await Promise.all([
+      const [daily, dailyAvg, monthly, summaryData] = await Promise.all([
         getManpowerDailyHoursByCompany(date),
         getManpowerDailyAverageHoursByCompany(date),
         getManpowerMonthlyHoursByCompany(month),
+        getPublicDashboardSummary(),
       ])
 
       setDailyRows(Array.isArray(daily) ? daily : [])
       setDailyAvgRows(Array.isArray(dailyAvg) ? dailyAvg : [])
       setMonthlyRows(Array.isArray(monthly) ? monthly : [])
+      setSummary(summaryData)
     } catch (e) {
       setDailyRows([])
       setDailyAvgRows([])
       setMonthlyRows([])
+      setSummary(null)
       setError(e?.response?.data?.message || e?.message || 'Failed to load analytics')
     } finally {
       setIsLoading(false)

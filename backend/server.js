@@ -14,6 +14,7 @@ import breakSessionRoutes from './routes/breakSessionRoutes.js';
 import scanRoutes from './routes/scanRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import processRoutes from './routes/processRoutes.js';
+import publicRoutes from './routes/publicRoutes.js';
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ app.use('/api/break-session', breakSessionRoutes);
 app.use('/api/scan', scanRoutes);
 app.use('/api/report',adminRoutes);
 app.use('/api/processes', processRoutes);
+app.use('/api/public', publicRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

@@ -47,9 +47,17 @@ export const Header = ({ withSidebar = false }) => {
         withSidebar ? 'left-64' : 'left-0'
       }`}
     >
-      <h2 className="text-base sm:text-lg font-semibold text-slate-800 truncate flex-1 min-w-0">
-        {headerTitle}
-      </h2>
+      <div className="flex flex-col truncate flex-1 min-w-0">
+        <div className="text-[10px] sm:text-xs font-semibold tracking-widest text-slate-500 uppercase truncate">
+          SCAN
+        </div>
+        <h2 className="text-base sm:text-lg font-semibold text-slate-800 truncate">
+          {headerTitle}
+        </h2>
+        <div className="hidden sm:block text-xs text-slate-500 truncate">
+          Employee Efficiency System
+        </div>
+      </div>
 
       <div className="flex items-center space-x-4 shrink-0">
         <Button
