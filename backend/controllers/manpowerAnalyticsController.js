@@ -1,5 +1,6 @@
 import WorkSession from '../models/WorkSession.js';
 import Company from '../models/Company.js';
+import QRCodeModel from '../models/QRCode.js';
 
 const parseYyyyMmDdToLocalDayRange = (dateStr) => {
   if (!dateStr || typeof dateStr !== 'string') {
@@ -37,8 +38,21 @@ const buildManpowerWorkSessionPipeline = ({ start, end, now }) => {
   return [
     {
       $match: {
-        employeeId: null,
         startTime: { $gte: start, $lte: end }
+      }
+    },
+    {
+      $lookup: {
+        from: QRCodeModel.collection.name,
+        localField: 'qrId',
+        foreignField: '_id',
+        as: 'qr'
+      }
+    },
+    { $unwind: { path: '$qr', preserveNullAndEmptyArrays: false } },
+    {
+      $match: {
+        'qr.qrType': 'manpower'
       }
     },
     {

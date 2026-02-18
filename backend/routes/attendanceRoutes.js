@@ -1,5 +1,5 @@
 import express from 'express';
-import { scanAtSecurity, getAttendanceSummary, getDailySummary } from '../controllers/attendanceController.js';
+import { scanAtSecurity, getAttendanceSummary, getDailySummary, getRecentAttendanceLogs } from '../controllers/attendanceController.js';
 
 const router = express.Router();
 
@@ -11,5 +11,8 @@ router.get('/summary', getAttendanceSummary);
 
 // GET /api/attendance/daily-summary?date=YYYY-MM-DD
 router.get('/daily-summary', getDailySummary);
+
+// GET /api/attendance/recent?limit=10
+router.get('/recent', getRecentAttendanceLogs);
 
 export default router;
