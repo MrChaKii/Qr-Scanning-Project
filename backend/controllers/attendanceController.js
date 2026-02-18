@@ -3,6 +3,26 @@ import QRCode from '../models/QRCode.js';
 import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
 
+// GET /api/attendance/recent?limit=10
+export const getRecentAttendanceLogs = async (req, res) => {
+  try {
+    const rawLimit = req.query?.limit;
+    const limit = Math.max(1, Math.min(100, Number(rawLimit) || 10));
+
+    const logs = await AttendanceLog.find({ scanLocation: 'SECURITY' })
+      .sort({ scanTime: -1 })
+      .limit(limit)
+      .populate('employeeId companyId');
+
+    return res.status(200).json(logs);
+  } catch (err) {
+    return res.status(500).json({
+      message: 'Error fetching recent attendance logs',
+      error: err.message,
+    });
+  }
+};
+
 // POST /api/attendance/scan
 export const scanAtSecurity = async (req, res) => {
   console.log('🔍 scanAtSecurity called with:', req.body);

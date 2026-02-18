@@ -140,3 +140,10 @@ export const getDailySummary = async (date) => {
   })
   return response.data
 }
+
+export const getRecentAttendanceLogs = async (limit = 10) => {
+  const response = await api.get('/api/attendance/recent', {
+    params: { limit },
+  })
+  return Array.isArray(response.data) ? response.data : []
+}

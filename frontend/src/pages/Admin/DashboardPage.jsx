@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom'
 import { getCompanies } from '../../services/company.service'
 import { getProcesses } from '../../services/process.service'
 import { getEmployees } from '../../services/employee.service'
+import { getRecentAttendanceLogs } from '../../services/attendance.service'
 
 const StatCard = ({ title, value, icon: Icon, tone = 'slate' }) => {
   const toneStyles = {
@@ -88,11 +89,12 @@ export const DashboardPage = () => {
     const fetchCounts = async () => {
       setIsLoading(true)
       try {
-        const [companiesRaw, processesRaw, employeesRaw] =
+        const [companiesRaw, processesRaw, employeesRaw, recentLogsRaw] =
           await Promise.all([
             getCompanies(),
             getProcesses(),
             getEmployees('all'),
+            getRecentAttendanceLogs(10),
           ])
 
         const companies = Array.isArray(companiesRaw)
@@ -116,10 +118,10 @@ export const DashboardPage = () => {
           employees: employees.length,
         })
 
-        // Leaving attendance summary as empty until wired up
-        setRecentAttendance([])
+        setRecentAttendance(Array.isArray(recentLogsRaw) ? recentLogsRaw : [])
       } catch (error) {
         console.error('Failed to fetch dashboard counts', error)
+        if (isMounted) setRecentAttendance([])
       } finally {
         if (isMounted) setIsLoading(false)
       }
@@ -134,37 +136,23 @@ export const DashboardPage = () => {
   const columns = [
     {
       header: 'Employee',
-      accessor: 'name',
+      accessor: (item) => item?.employeeId?.name || item?.employeeId?.employeeId || '-',
     },
     {
-      header: 'Check In',
-      accessor: (item) =>
-        item.checkIn
-          ? new Date(item.checkIn).toLocaleTimeString()
-          : '-',
+      header: 'Company',
+      accessor: (item) => item?.companyId?.companyName || '-',
     },
     {
-      header: 'Check Out',
-      accessor: (item) =>
-        item.checkOut
-          ? new Date(item.checkOut).toLocaleTimeString()
-          : '-',
-    },
-    {
-      header: 'Status',
+      header: 'Type',
       accessor: (item) => (
-        <Badge
-          variant={
-            item.status === 'Present'
-              ? 'success'
-              : item.status === 'Partial'
-              ? 'warning'
-              : 'error'
-          }
-        >
-          {item.status}
+        <Badge variant={item?.scanType === 'IN' ? 'success' : 'error'}>
+          {item?.scanType || '-'}
         </Badge>
       ),
+    },
+    {
+      header: 'Time',
+      accessor: (item) => (item?.scanTime ? new Date(item.scanTime).toLocaleString() : '-'),
     },
   ]
 
@@ -246,7 +234,7 @@ export const DashboardPage = () => {
         <Table
           data={recentAttendance}
           columns={columns}
-          keyExtractor={(item) => item.employeeId}
+          keyExtractor={(item) => item?._id}
           isLoading={isLoading}
           emptyMessage="No attendance records for today"
         />
