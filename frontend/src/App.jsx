@@ -22,12 +22,12 @@ import { WorkSessionsPage } from './pages/Admin/WorkSessionsPage'
 import { BreaksPage } from './pages/Admin/BreaksPage'
 import { ProcessesPage } from './pages/Admin/ProcessesPage'
 import { AnalyticsPage } from './pages/Admin/AnalyticsPage'
+import { PublicDashboardPage } from './pages/Public/PublicDashboardPage'
 
 // Security Pages
 import { AttendanceScanPage } from './pages/Security/AttendanceScanPage'
 
 // Process Pages
-// import { ProcessDashboardPage } from './pages/Process/ProcessDashboardPage'
 import { ProcessScanPage } from './pages/Process/ProcessScanPage'
 
 export function App() {
@@ -37,6 +37,8 @@ export function App() {
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+
+            <Route path="/public-dashboard" element={<PublicDashboardPage />} />
 
             <Route
               path="/"
@@ -154,16 +156,6 @@ export function App() {
                 </ProtectedRoute>
               }
             />
-
-            {/* Process Routes */}
-            {/* <Route
-              path="/process/dashboard"
-              element={
-                <ProtectedRoute requiredRole="process">
-                  <ProcessDashboardPage />
-                </ProtectedRoute>
-              }
-            /> */}
 
             <Route
               path="/process/scan"
