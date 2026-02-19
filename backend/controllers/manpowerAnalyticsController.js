@@ -134,29 +134,85 @@ export const getDailyAverageManpowerWorkHoursByCompany = async (req, res) => {
     const { date } = req.query;
     const { start, end } = parseYyyyMmDdToLocalDayRange(String(date));
 
-    const basePipeline = buildManpowerWorkSessionPipeline({
-      start,
-      end,
-      now: new Date()
-    });
+    const now = new Date();
 
+    // Build a dedicated pipeline here because the base pipeline's $project stage
+    // is where totalHours is computed.
     const pipeline = [
-      ...basePipeline.slice(0, -2), // remove sort
+      {
+        $match: {
+          startTime: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $lookup: {
+          from: QRCodeModel.collection.name,
+          localField: 'qrId',
+          foreignField: '_id',
+          as: 'qr'
+        }
+      },
+      { $unwind: { path: '$qr', preserveNullAndEmptyArrays: false } },
+      {
+        $match: {
+          'qr.qrType': 'manpower'
+        }
+      },
       {
         $addFields: {
+          durationMinutesEffective: {
+            $cond: [
+              { $ne: ['$durationMinutes', null] },
+              '$durationMinutes',
+              {
+                $cond: [
+                  { $ne: ['$endTime', null] },
+                  { $divide: [{ $subtract: ['$endTime', '$startTime'] }, 60000] },
+                  { $divide: [{ $subtract: [now, '$startTime'] }, 60000] }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$companyId',
+          totalMinutes: { $sum: '$durationMinutesEffective' },
+          sessionCount: { $sum: 1 }
+        }
+      },
+      {
+        $addFields: {
+          totalHoursRaw: { $divide: ['$totalMinutes', 60] }
+        }
+      },
+      {
+        $addFields: {
+          totalHours: { $round: ['$totalHoursRaw', 2] },
           averageHoursPerSession: {
             $cond: [
               { $gt: ['$sessionCount', 0] },
-              { $round: [{ $divide: ['$totalHours', '$sessionCount'] }, 2] },
+              { $round: [{ $divide: ['$totalHoursRaw', '$sessionCount'] }, 2] },
               0
             ]
           }
         }
       },
       {
+        $lookup: {
+          from: Company.collection.name,
+          localField: '_id',
+          foreignField: '_id',
+          as: 'company'
+        }
+      },
+      { $unwind: { path: '$company', preserveNullAndEmptyArrays: true } },
+      {
         $project: {
-          companyId: 1,
-          companyName: 1,
+          _id: 0,
+          companyId: '$_id',
+          companyName: { $ifNull: ['$company.companyName', 'Unknown Company'] },
           sessionCount: 1,
           totalHours: 1,
           averageHoursPerSession: 1

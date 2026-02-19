@@ -55,28 +55,44 @@ const MonthlyBarChart = ({ rows }) => {
 
   return (
     <div className="w-full">
-      <div className="flex items-end gap-4 h-56 border border-slate-200 rounded-md p-4 bg-slate-50 overflow-x-auto">
-        {safeRows.map((row, idx) => {
-          const hours = Number(row.totalHours) || 0
-          const heightPct = maxHours > 0 ? (hours / maxHours) * 100 : 0
-          const color = palette[idx % palette.length]
+      <div className="border border-slate-200 rounded-md p-4 bg-slate-50 overflow-x-auto">
+        <div className="min-w-130 flex flex-col gap-3">
+          {safeRows.map((row, idx) => {
+            const hours = Number(row.totalHours) || 0
+            const widthPct = maxHours > 0 ? (hours / maxHours) * 100 : 0
+            const color = palette[idx % palette.length]
+            const key = row.companyId || row.companyName || idx
 
-          return (
-            <div key={row.companyId || row.companyName || idx} className="flex flex-col items-center min-w-20">
-              <div className="text-xs text-slate-700 mb-2">{formatHours(hours)}</div>
-              <div className="w-10 h-40 flex items-end">
-                <div
-                  className={`w-full rounded-t ${color}`}
-                  style={{ height: `${heightPct}%` }}
-                  title={`${row.companyName}: ${formatHours(hours)} hours`}
-                />
+            return (
+              <div key={key} className="grid grid-cols-12 items-center gap-3">
+                <div className="col-span-4 sm:col-span-3 min-w-0">
+                  <div
+                    className="text-xs font-medium text-slate-700 truncate"
+                    title={row.companyName}
+                  >
+                    {row.companyName}
+                  </div>
+                </div>
+
+                <div className="col-span-6 sm:col-span-7">
+                  <div className="h-3 w-full bg-white border border-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${color}`}
+                      style={{ width: `${widthPct}%` }}
+                      title={`${row.companyName}: ${formatHours(hours)} hours`}
+                    />
+                  </div>
+                </div>
+
+                <div className="col-span-2 text-right">
+                  <span className="text-xs text-slate-700 tabular-nums">
+                    {formatHours(hours)}
+                  </span>
+                </div>
               </div>
-              <div className="mt-2 text-xs text-slate-600 text-center wrap-break-word max-w-20">
-                {row.companyName}
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
       <div className="mt-2 text-xs text-slate-500">
         Bars show monthly manpower work hours by company.
