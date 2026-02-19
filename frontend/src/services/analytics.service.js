@@ -20,3 +20,10 @@ export const getManpowerMonthlyHoursByCompany = async (month) => {
   })
   return response.data?.rows || []
 }
+
+export const getEmployeeDailyIdleTime = async (date) => {
+  const response = await api.get('/api/report/analytics/employee-idle/daily', {
+    params: { date },
+  })
+  return response.data?.rows || []
+}

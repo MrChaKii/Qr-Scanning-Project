@@ -6,6 +6,7 @@ import { Table } from '../../components/ui/Table'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import {
+  getEmployeeDailyIdleTime,
   getManpowerDailyAverageHoursByCompany,
   getManpowerDailyHoursByCompany,
   getManpowerMonthlyHoursByCompany,
@@ -28,6 +29,13 @@ const formatHours = (value) => {
   const n = Number(value)
   if (Number.isNaN(n)) return '0.00'
   return n.toFixed(2)
+}
+
+const formatTime = (value) => {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 const MonthlyBarChart = ({ rows }) => {
@@ -107,6 +115,7 @@ export const AnalyticsPage = () => {
 
   const [dailyRows, setDailyRows] = useState([])
   const [dailyAvgRows, setDailyAvgRows] = useState([])
+  const [idleRows, setIdleRows] = useState([])
   const [monthlyRows, setMonthlyRows] = useState([])
 
   const [isLoading, setIsLoading] = useState(true)
@@ -120,20 +129,23 @@ export const AnalyticsPage = () => {
     setError('')
 
     try {
-      const [daily, dailyAvg, monthly, summaryData] = await Promise.all([
+      const [daily, dailyAvg, idle, monthly, summaryData] = await Promise.all([
         getManpowerDailyHoursByCompany(date),
         getManpowerDailyAverageHoursByCompany(date),
+        getEmployeeDailyIdleTime(date),
         getManpowerMonthlyHoursByCompany(month),
         getPublicDashboardSummary(),
       ])
 
       setDailyRows(Array.isArray(daily) ? daily : [])
       setDailyAvgRows(Array.isArray(dailyAvg) ? dailyAvg : [])
+      setIdleRows(Array.isArray(idle) ? idle : [])
       setMonthlyRows(Array.isArray(monthly) ? monthly : [])
       setSummary(summaryData)
     } catch (e) {
       setDailyRows([])
       setDailyAvgRows([])
+      setIdleRows([])
       setMonthlyRows([])
       setSummary(null)
       setError(e?.response?.data?.message || e?.message || 'Failed to load analytics')
@@ -185,6 +197,47 @@ export const AnalyticsPage = () => {
     {
       header: 'Sessions',
       accessor: (row) => row.sessionCount ?? 0,
+      className: 'text-right',
+    },
+  ]
+
+  const idleColumns = [
+    {
+      header: 'Employee',
+      accessor: (row) => row.employeeName || '—',
+    },
+    {
+      header: 'Company',
+      accessor: (row) => row.companyName || '—',
+    },
+    {
+      header: 'Check In',
+      accessor: (row) => formatTime(row.checkInTime),
+      className: 'text-right',
+    },
+    {
+      header: 'Check Out',
+      accessor: (row) => (row.isCheckedOut ? formatTime(row.checkOutTime) : '—'),
+      className: 'text-right',
+    },
+    {
+      header: 'Presence (hrs)',
+      accessor: (row) => formatHours(row.presenceHours),
+      className: 'text-right',
+    },
+    {
+      header: 'Work (hrs)',
+      accessor: (row) => formatHours(row.workHours),
+      className: 'text-right',
+    },
+    {
+      header: 'Break (hrs)',
+      accessor: (row) => formatHours(row.breakHours),
+      className: 'text-right',
+    },
+    {
+      header: 'Idle (hrs)',
+      accessor: (row) => formatHours(row.idleHours),
       className: 'text-right',
     },
   ]
@@ -246,6 +299,15 @@ export const AnalyticsPage = () => {
                 columns={dailyAvgColumns}
                 keyExtractor={(row) => row.companyId || row.companyName}
                 emptyMessage="No manpower sessions for this date"
+              />
+            </Card>
+
+            <Card title={`Daily employee idle time — ${date}`}>
+              <Table
+                data={idleRows}
+                columns={idleColumns}
+                keyExtractor={(row) => row.employeeId || row.employeeName}
+                emptyMessage="No attendance records for this date"
               />
             </Card>
 
