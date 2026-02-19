@@ -112,26 +112,6 @@ export const EmployeeDetailPage = () => {
                   {employee.companyId?.companyName || 'N/A'}
                 </dd>
               </div>
-
-              {/* <div>
-                <dt className="text-sm font-medium text-slate-500">
-                  Start Date
-                </dt>
-                <dd className="mt-1 text-sm text-slate-900">
-                  {new Date(employee.startDate).toLocaleDateString()}
-                </dd>
-              </div>
-
-              <div>
-                <dt className="text-sm font-medium text-slate-500">
-                  End Date
-                </dt>
-                <dd className="mt-1 text-sm text-slate-900">
-                  {employee.endDate
-                    ? new Date(employee.endDate).toLocaleDateString()
-                    : 'N/A'}
-                </dd>
-              </div> */}
             </dl>
           </Card>
         </div>
@@ -144,6 +124,8 @@ export const EmployeeDetailPage = () => {
                 label={employee.name}
                 employeeId={employee.employeeId}
                 name={employee.name}
+                companyNumber={employee.companyId?.companyId}
+                companyName={employee.companyId?.companyName}
               />
             </div>
           </Card>
