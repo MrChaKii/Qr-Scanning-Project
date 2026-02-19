@@ -14,6 +14,8 @@ import {
   getMonthlyManpowerWorkHoursByCompany
 } from '../controllers/manpowerAnalyticsController.js';
 
+import { getDailyEmployeeIdleTime } from '../controllers/idleAnalyticsController.js';
+
 const router = express.Router();
 
 // Admin reporting APIs
@@ -27,5 +29,8 @@ router.get('/report/company-productivity', companyWiseProductivity);
 router.get('/analytics/manpower-hours/daily', getDailyManpowerWorkHoursByCompany);
 router.get('/analytics/manpower-hours/daily-average', getDailyAverageManpowerWorkHoursByCompany);
 router.get('/analytics/manpower-hours/monthly', getMonthlyManpowerWorkHoursByCompany);
+
+// Analytics (Employee idle time)
+router.get('/analytics/employee-idle/daily', getDailyEmployeeIdleTime);
 
 export default router;

@@ -1,6 +1,7 @@
 import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
 import Process from '../models/Process.js';
+import { getDailyEmployeeIdleTime } from './idleAnalyticsController.js';
 
 // GET /api/public/dashboard-summary
 export const getPublicDashboardSummary = async (req, res) => {
@@ -35,3 +36,6 @@ export const getPublicDashboardSummary = async (req, res) => {
     });
   }
 };
+
+// GET /api/public/employee-idle/daily?date=YYYY-MM-DD
+export const getPublicDailyEmployeeIdleTime = getDailyEmployeeIdleTime;
