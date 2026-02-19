@@ -8,23 +8,67 @@ export const QRCodeDisplay = ({
   size = 256,
   label,
   employeeId,
-  name
+  name,
+  companyNumber,
+  companyName
 }) => {
   const qrRef = useRef(null)
 
   const downloadQRCode = () => {
     if (!qrRef.current) return
 
-    const canvas = qrRef.current.querySelector('canvas')
-    if (!canvas) return
+    const qrCanvas = qrRef.current.querySelector('canvas')
+    if (!qrCanvas) return
 
-    const pngUrl = canvas.toDataURL('image/png')
+    const lines = []
+    if (employeeId) lines.push(`Employee ID: ${employeeId}`)
+    if (companyNumber) lines.push(`Company No: ${companyNumber}`)
+    if (companyName) lines.push(`Company: ${companyName}`)
+
+    let pngUrl = ''
+    if (lines.length === 0) {
+      pngUrl = qrCanvas.toDataURL('image/png')
+    } else {
+      const textPaddingY = 12
+      const fontSize = 16
+      const lineHeight = 20
+      const textAreaHeight = textPaddingY * 2 + lineHeight * lines.length
+
+      const combinedCanvas = document.createElement('canvas')
+      combinedCanvas.width = qrCanvas.width
+      combinedCanvas.height = qrCanvas.height + textAreaHeight
+
+      const ctx = combinedCanvas.getContext('2d')
+      if (!ctx) return
+
+      // White background so the saved PNG doesn't end up transparent.
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, combinedCanvas.width, combinedCanvas.height)
+
+      // Draw QR code
+      ctx.drawImage(qrCanvas, 0, 0)
+
+      // Draw text below
+      ctx.fillStyle = '#000000'
+      ctx.font = `${fontSize}px sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+
+      let y = qrCanvas.height + textPaddingY
+      for (const line of lines) {
+        ctx.fillText(line, combinedCanvas.width / 2, y)
+        y += lineHeight
+      }
+
+      pngUrl = combinedCanvas.toDataURL('image/png')
+    }
     const downloadLink = document.createElement('a')
 
     downloadLink.href = pngUrl
     // Simple filename: employeeId_name.png, spaces replaced with _
-    const safeName = (name || 'name').replace(/\s+/g, '_');
-    downloadLink.download = `${employeeId || 'employee'}_${safeName}.png`;
+    const safeName = (name || 'name').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '_')
+    const safeEmployeeId = (employeeId || 'employee').replace(/[^a-zA-Z0-9_-]/g, '_')
+    downloadLink.download = `${safeEmployeeId}_${safeName}.png`
 
     document.body.appendChild(downloadLink)
     downloadLink.click()
