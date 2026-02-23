@@ -33,6 +33,13 @@ const AttendanceLogSchema = new mongoose.Schema({
   workDate: {
     type: String, // YYYY-MM-DD
     required: true
+  },
+  editedAt: {
+    type: Date
+  },
+  editedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 });
 

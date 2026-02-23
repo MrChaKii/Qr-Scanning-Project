@@ -3,6 +3,11 @@ import QRCode from '../models/QRCode.js';
 import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
 
+const toWorkDate = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+};
+
 // GET /api/attendance/recent?limit=10
 export const getRecentAttendanceLogs = async (req, res) => {
   try {
@@ -123,6 +128,61 @@ export const scanAtSecurity = async (req, res) => {
     res.status(500).json({
       message: 'Server error',
       error: err.message
+    });
+  }
+};
+
+// PUT /api/attendance/logs/:id/scan-time
+// Admin-only: update the scanTime (check-in/check-out time) for an existing attendance log.
+export const updateAttendanceLogScanTime = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { scanTime } = req.body;
+
+    if (!id || !/^[a-fA-F0-9]{24}$/.test(id)) {
+      return res.status(400).json({ message: 'Invalid attendance log id' });
+    }
+
+    if (!scanTime) {
+      return res.status(400).json({ message: 'scanTime is required' });
+    }
+
+    const parsed = new Date(scanTime);
+    if (Number.isNaN(parsed.getTime())) {
+      return res.status(400).json({ message: 'scanTime must be a valid date/time' });
+    }
+
+    const log = await AttendanceLog.findById(id);
+    if (!log) {
+      return res.status(404).json({ message: 'Attendance log not found' });
+    }
+
+    // Only allow editing SECURITY attendance logs via this endpoint.
+    if (log.scanLocation !== 'SECURITY') {
+      return res.status(400).json({ message: 'Only SECURITY attendance logs can be edited here' });
+    }
+
+    log.scanTime = parsed;
+    const newWorkDate = toWorkDate(parsed);
+    if (!newWorkDate) {
+      return res.status(400).json({ message: 'Failed to compute workDate from scanTime' });
+    }
+    log.workDate = newWorkDate;
+    log.editedAt = new Date();
+    if (req.userId) {
+      log.editedBy = req.userId;
+    }
+
+    await log.save();
+
+    return res.status(200).json({
+      message: 'Attendance time updated successfully',
+      attendance: log,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: 'Error updating attendance time',
+      error: err.message,
     });
   }
 };

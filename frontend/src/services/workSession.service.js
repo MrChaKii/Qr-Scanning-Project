@@ -24,3 +24,15 @@ export const stopWorkSession = async (id) => {
   const response = await api.post(`/api/work-session/${id}/stop`)
   return response.data.session
 }
+
+// Admin-only: update a work session's start/end times
+export const updateWorkSessionTimes = async (sessionId, { startTime, endTime }) => {
+  if (!sessionId) throw new Error('sessionId is required')
+
+  const payload = {}
+  if (startTime !== undefined) payload.startTime = startTime
+  if (endTime !== undefined) payload.endTime = endTime
+
+  const response = await api.put(`/api/work-session/sessions/${sessionId}/times`, payload)
+  return response.data?.session || response.data
+}
