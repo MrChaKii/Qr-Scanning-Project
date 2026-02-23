@@ -15,6 +15,14 @@ const resolveQRCode = async (qrId) => {
   return QRCode.findOne({ qrId }).populate('employeeId companyId');
 };
 
+const parseOptionalDate = (value) => {
+  if (value === undefined) return { provided: false };
+  if (value === null || value === '') return { provided: true, date: null };
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return { provided: true, invalid: true };
+  return { provided: true, date: d };
+};
+
 // GET /api/work-session/all
 export const getAllSessions = async (req, res) => {
   try {
@@ -173,6 +181,71 @@ export const stopSession = async (req, res) => {
     res.status(500).json({
       message: 'Server error',
       error: err.message
+    });
+  }
+};
+
+// PUT /api/work-session/sessions/:id/times
+// Admin-only: update a session's startTime/endTime and recompute durationMinutes
+export const updateWorkSessionTimes = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || !/^[a-fA-F0-9]{24}$/.test(id)) {
+      return res.status(400).json({ message: 'Invalid work session id' });
+    }
+
+    const startParsed = parseOptionalDate(req.body?.startTime);
+    const endParsed = parseOptionalDate(req.body?.endTime);
+
+    if (!startParsed.provided && !endParsed.provided) {
+      return res.status(400).json({ message: 'startTime or endTime is required' });
+    }
+
+    if (startParsed.invalid) {
+      return res.status(400).json({ message: 'startTime must be a valid date/time' });
+    }
+    if (endParsed.invalid) {
+      return res.status(400).json({ message: 'endTime must be a valid date/time or null' });
+    }
+
+    const session = await WorkSession.findById(id);
+    if (!session) {
+      return res.status(404).json({ message: 'Work session not found' });
+    }
+
+    if (startParsed.provided && startParsed.date) {
+      session.startTime = startParsed.date;
+    }
+
+    if (endParsed.provided) {
+      if (endParsed.date === null) {
+        session.endTime = undefined;
+        session.durationMinutes = undefined;
+      } else if (endParsed.date) {
+        session.endTime = endParsed.date;
+      }
+    }
+
+    // Validate ordering when endTime exists
+    if (session.endTime && session.startTime && session.endTime < session.startTime) {
+      return res.status(400).json({ message: 'endTime cannot be before startTime' });
+    }
+
+    // Recompute durationMinutes if complete
+    if (session.endTime && session.startTime) {
+      session.durationMinutes = Math.round((session.endTime - session.startTime) / 60000);
+    }
+
+    await session.save();
+
+    return res.status(200).json({
+      message: 'Work session times updated successfully',
+      session,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: 'Error updating work session times',
+      error: err.message,
     });
   }
 };

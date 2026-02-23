@@ -147,3 +147,16 @@ export const getRecentAttendanceLogs = async (limit = 10) => {
   })
   return Array.isArray(response.data) ? response.data : []
 }
+
+// Admin-only: update scan time for a specific attendance log
+export const updateAttendanceLogScanTime = async (attendanceLogId, scanTime) => {
+  if (!attendanceLogId) {
+    throw new Error('attendanceLogId is required')
+  }
+
+  const response = await api.put(`/api/attendance/logs/${attendanceLogId}/scan-time`, {
+    scanTime,
+  })
+
+  return response.data?.attendance || response.data
+}
