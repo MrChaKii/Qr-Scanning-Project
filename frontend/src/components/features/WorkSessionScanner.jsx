@@ -6,6 +6,7 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { toggleProcessWorkSession } from "../../services/scan.service";
 import { useToast } from "../../hooks/useToast";
+import { playScanBeep } from "../../utils/sound";
 
 export const WorkSessionScanner = ({ onScanSuccess }) => {
   const [value, setValue] = useState("");
@@ -19,8 +20,21 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
   const isMountedRef = useRef(true);
   const scanLockRef = useRef(false);
   const lastDecodedRef = useRef({ text: null, at: 0 });
+  const cooldownTimeoutRef = useRef(null);
+
+  const COOLDOWN_MS = 5000;
 
   const { showToast } = useToast();
+
+  const startCooldown = () => {
+    if (cooldownTimeoutRef.current) {
+      clearTimeout(cooldownTimeoutRef.current);
+    }
+
+    cooldownTimeoutRef.current = setTimeout(() => {
+      scanLockRef.current = false;
+    }, COOLDOWN_MS);
+  };
 
   // Auto scan with toggle (backend determines IN/OUT)
   const handleAutoScan = async (valueOverride) => {
@@ -34,6 +48,7 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
     scanLockRef.current = true;
 
     setIsLoading(true);
+    let didSucceed = false;
 
     try {
       const cleanId = raw;
@@ -53,6 +68,10 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
       showToast(`Session ${action}${proc ? ` (${proc})` : ""}`, "success");
       setValue("");
 
+      didSucceed = true;
+      playScanBeep();
+      startCooldown();
+
       if (onScanSuccess) {
         onScanSuccess();
       }
@@ -67,7 +86,10 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
       setValue(""); // Clear on error too
     } finally {
       setIsLoading(false);
-      scanLockRef.current = false;
+      // Only enforce the 5s delay after a successful scan.
+      if (!didSucceed) {
+        scanLockRef.current = false;
+      }
     }
   };
 
@@ -108,6 +130,8 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
       (decodedText) => {
         const decoded = String(decodedText ?? "");
         const now = Date.now();
+
+        if (scanLockRef.current) return;
 
         // Prevent repeated triggers on the same QR while it's still in view.
         if (
@@ -178,6 +202,12 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
     return () => {
       isMountedRef.current = false;
       clearTimeout(timer);
+
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current);
+        cooldownTimeoutRef.current = null;
+      }
+
       stopCameraScan();
     };
   }, []);
