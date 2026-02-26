@@ -15,5 +15,11 @@
 # Process logins
 - **username**: Packeting
 - **password**: pack123
-- **email**: pack.process@gmail.com
 
+# Process logins
+- **username**: Cassava cutting
+- **password**: casscut123
+
+# Process logins
+- **username**: Peeling
+- **password**: peel123

@@ -4,6 +4,7 @@ import { Button } from '../ui/Button'
 import { QrCode, CheckCircle, XCircle } from 'lucide-react'
 import { scanAttendance } from '../../services/attendance.service'
 import { useToast } from '../../hooks/useToast'
+import { playScanBeep } from '../../utils/sound'
 
 
 export const AttendanceScanner = ({ onScanSuccess }) => {
@@ -15,12 +16,30 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
   const cameraRef = useRef(null)
   const html5QrcodeScannerRef = useRef(null)
   const isMountedRef = useRef(true)
+  const scanLockRef = useRef(false)
+  const cooldownTimeoutRef = useRef(null)
+  const lastDecodedRef = useRef({ text: null, at: 0 })
+
+  const COOLDOWN_MS = 5000
 
   const { showToast } = useToast()
+
+  const startCooldown = () => {
+    if (cooldownTimeoutRef.current) {
+      clearTimeout(cooldownTimeoutRef.current)
+    }
+
+    cooldownTimeoutRef.current = setTimeout(() => {
+      scanLockRef.current = false
+    }, COOLDOWN_MS)
+  }
 
   // Auto scan with toggle (no type needed - backend determines IN/OUT)
   const handleAutoScan = async (valueOverride) => {
     if (isLoading) return
+
+    if (scanLockRef.current) return
+    scanLockRef.current = true
 
     const raw = (valueOverride ?? employeeId).trim()
     if (!raw) {
@@ -29,6 +48,7 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
     }
 
     setIsLoading(true)
+    let didSucceed = false
 
     try {
       let cleanId = raw
@@ -62,6 +82,10 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
       showToast(`Checked ${action}`, 'success')
       setEmployeeId('')
 
+      didSucceed = true
+      playScanBeep()
+      startCooldown()
+
       if (onScanSuccess) {
         onScanSuccess()
       }
@@ -72,6 +96,11 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
       setEmployeeId('') // Clear on error too
     } finally {
       setIsLoading(false)
+
+      // Only enforce the 5s delay after a successful scan.
+      if (!didSucceed) {
+        scanLockRef.current = false
+      }
     }
   }
 
@@ -120,10 +149,20 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
       { facingMode: 'environment' },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
-        console.log('QR Code detected:', decodedText)
-        const decoded = decodedText
-        setEmployeeId(decoded)
+        const decoded = String(decodedText ?? '')
+        const now = Date.now()
 
+        if (scanLockRef.current) return
+
+        // Prevent repeated triggers on the same QR while it's still in view.
+        if (lastDecodedRef.current.text === decoded && now - lastDecodedRef.current.at < 2000) {
+          return
+        }
+
+        lastDecodedRef.current = { text: decoded, at: now }
+        console.log('QR Code detected:', decoded)
+
+        setEmployeeId(decoded)
         handleAutoScan(decoded)
       },
       () => {
@@ -184,6 +223,10 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
       console.log('AttendanceScanner unmounting')
       isMountedRef.current = false
       clearTimeout(timer)
+      if (cooldownTimeoutRef.current) {
+        clearTimeout(cooldownTimeoutRef.current)
+        cooldownTimeoutRef.current = null
+      }
       stopCameraScan()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
