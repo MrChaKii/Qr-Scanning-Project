@@ -7,9 +7,14 @@ const BreakSessionSchema = new mongoose.Schema({
     enum: ['BREAKFAST', 'LUNCH', 'TEA', 'CLOTHES'],
     required: true
   },
+  // Duration-based breaks (preferred).
+  // Stored in minutes to avoid floating point ambiguity.
+  durationMinutes: {
+    type: Number,
+    min: 0
+  },
   startTime: {
-    type: String,
-    required: true
+    type: String
   },
   endTime: {
     type: String

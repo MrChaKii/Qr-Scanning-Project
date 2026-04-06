@@ -3,10 +3,9 @@ import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
-import { Select } from '../../components/ui/Select'
 import { BreakForm } from '../../components/forms/BreakForm'
 import { getBreakSessions, createBreakSession, updateBreakSession, deleteBreakSession } from '../../services/break.service'
-import { Plus, Coffee } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useToast } from '../../hooks/useToast'
 
 export const BreaksPage = () => {
@@ -68,26 +67,28 @@ export const BreaksPage = () => {
     setDeleteId(null);
   };
 
+  const formatDurationMinutes = (item) => {
+    if (item?.durationMinutes !== undefined && item?.durationMinutes !== null) {
+      const n = Number(item.durationMinutes);
+      if (!Number.isNaN(n) && n >= 0) return `${n} min`;
+    }
+
+    // Backward compatibility for old records.
+    const start = item?.startTime ? new Date(item.startTime) : null;
+    const end = item?.endTime ? new Date(item.endTime) : null;
+    if (!start || Number.isNaN(start.getTime()) || !end || Number.isNaN(end.getTime())) return '';
+    const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
+    return minutes > 0 ? `${minutes} min` : '';
+  };
+
   const columns = [
     {
       header: 'Break Type',
       accessor: (item) => item.breakType,
     },
     {
-      header: 'Start Time',
-      accessor: (item) => {
-        if (!item.startTime) return '';
-        const date = new Date(item.startTime);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-      },
-    },
-    {
-      header: 'End Time',
-      accessor: (item) => {
-        if (!item.endTime) return '';
-        const date = new Date(item.endTime);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-      },
+      header: 'Duration',
+      accessor: (item) => formatDurationMinutes(item),
     },
     {
       header: 'Actions',
