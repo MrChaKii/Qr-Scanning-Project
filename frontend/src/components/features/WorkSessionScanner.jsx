@@ -7,6 +7,7 @@ import { Input } from "../ui/Input";
 import { toggleProcessWorkSession } from "../../services/scan.service";
 import { useToast } from "../../hooks/useToast";
 import { playScanBeep } from "../../utils/sound";
+import { useHardwareScanner } from "../../hooks/useHardwareScanner";
 
 export const WorkSessionScanner = ({ onScanSuccess }) => {
   const [value, setValue] = useState("");
@@ -92,6 +93,16 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
       }
     }
   };
+
+  // Zebra IRD / hardware scanners commonly type the decoded value + Enter/Tab.
+  // This runs in parallel with camera scanning.
+  useHardwareScanner({
+    enabled: true,
+    onScan: (text) => {
+      setValue(text);
+      handleAutoScan(text);
+    },
+  });
 
   const startCameraScan = () => {
     if (!cameraRef.current) {

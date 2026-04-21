@@ -7,14 +7,30 @@ import Employee from '../models/Employee.js';
 // Toggle break: if open, end it; if not, start new
 export const createBreak = async (req, res) => {
   try {
-    const { breakType, startTime, endTime } = req.body;
+    const { breakType, startTime, endTime, durationMinutes } = req.body;
     if (!breakType) {
       return res.status(400).json({ message: 'breakType is required' });
     }
+
+    const duration = durationMinutes === undefined || durationMinutes === null
+      ? null
+      : Number(durationMinutes);
+    if (duration !== null && (Number.isNaN(duration) || duration < 0)) {
+      return res.status(400).json({ message: 'durationMinutes must be a non-negative number' });
+    }
+
+    const effectiveStartTime = startTime || new Date().toISOString();
+    const effectiveEndTime = endTime
+      ? endTime
+      : (duration !== null
+        ? new Date(new Date(effectiveStartTime).getTime() + duration * 60000).toISOString()
+        : undefined);
+
     const breakSession = new BreakSession({
       breakType,
-      startTime: startTime,
-      ...(endTime && { endTime })
+      ...(duration !== null && { durationMinutes: duration }),
+      startTime: effectiveStartTime,
+      ...(effectiveEndTime && { endTime: effectiveEndTime })
     });
     await breakSession.save();
     res.status(201).json({
@@ -33,7 +49,30 @@ export const createBreak = async (req, res) => {
 export const updateBreak = async (req, res) => {
   try {
     const { id } = req.params;
-    const update = req.body;
+    const update = { ...req.body };
+
+    if (update.durationMinutes !== undefined) {
+      const duration = update.durationMinutes === null ? null : Number(update.durationMinutes);
+      if (duration !== null && (Number.isNaN(duration) || duration < 0)) {
+        return res.status(400).json({ message: 'durationMinutes must be a non-negative number' });
+      }
+      update.durationMinutes = duration;
+
+      // If a duration is provided and no explicit endTime, keep endTime in sync.
+      if (duration !== null) {
+        const start = update.startTime ? new Date(update.startTime) : null;
+        const startValid = start && !Number.isNaN(start.getTime());
+        if (startValid && update.endTime === undefined) {
+          update.endTime = new Date(start.getTime() + duration * 60000).toISOString();
+        }
+      }
+    }
+
+    if (update.startTime === undefined) {
+      // Preserve existing startTime if not provided.
+      delete update.startTime;
+    }
+
     const breakSession = await BreakSession.findByIdAndUpdate(id, update, { new: true });
     if (!breakSession) {
       return res.status(404).json({ message: 'Break session not found.' });

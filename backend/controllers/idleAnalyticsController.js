@@ -41,11 +41,18 @@ const computeTotalBreakMinutesForRange = async ({ start, end, now }) => {
   const breaks = await BreakSession.find({
     startTime: { $gte: startIso, $lte: endIso }
   })
-    .select('startTime endTime')
+    .select('startTime endTime durationMinutes')
     .lean();
 
   let total = 0;
   for (const brk of breaks) {
+    const storedDuration = brk?.durationMinutes;
+    if (storedDuration !== undefined && storedDuration !== null) {
+      const n = Number(storedDuration);
+      if (!Number.isNaN(n) && n > 0) total += n;
+      continue;
+    }
+
     const brkStart = safeDate(brk.startTime);
     if (!brkStart) continue;
     const brkEnd = safeDate(brk.endTime) || now;
