@@ -109,6 +109,7 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
   // This runs in parallel with camera scanning.
   useHardwareScanner({
     enabled: true,
+    preventDefaultDuringScan: true,
     onScan: (text) => {
       setEmployeeId(text)
       handleAutoScan(text)
