@@ -5,6 +5,7 @@ import { QrCode, CheckCircle, XCircle } from 'lucide-react'
 import { scanAttendance } from '../../services/attendance.service'
 import { useToast } from '../../hooks/useToast'
 import { playScanBeep } from '../../utils/sound'
+import { useHardwareScanner } from '../../hooks/useHardwareScanner'
 
 
 export const AttendanceScanner = ({ onScanSuccess }) => {
@@ -103,6 +104,16 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
       }
     }
   }
+
+  // Zebra IRD / hardware scanners commonly type the decoded value + Enter/Tab.
+  // This runs in parallel with camera scanning.
+  useHardwareScanner({
+    enabled: true,
+    onScan: (text) => {
+      setEmployeeId(text)
+      handleAutoScan(text)
+    },
+  })
 
   // Camera QR scan logic
   const startCameraScan = () => {
