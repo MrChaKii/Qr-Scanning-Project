@@ -1,5 +1,20 @@
 # React + Vite
 
+## Zebra (IRD) scanner + camera QR scanning
+
+This frontend supports **both**:
+- Camera scanning (via `html5-qrcode`)
+- Zebra built-in IRD scanners when configured as a **keyboard wedge** (DataWedge types the decoded value + Enter/Tab)
+
+### Zebra DataWedge settings (recommended)
+
+1. Create a DataWedge profile for the browser you use on the Zebra device (e.g. Chrome or Zebra Enterprise Browser).
+2. Enable **Barcode input**.
+3. Enable **Keystroke output**.
+4. Set a suffix to finish each scan (either enable **Send ENTER key** or use an Enter/Tab suffix).
+
+Once configured, scans from the IRD trigger the same behavior as camera scans in the app.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
