@@ -98,6 +98,7 @@ export const WorkSessionScanner = ({ onScanSuccess }) => {
   // This runs in parallel with camera scanning.
   useHardwareScanner({
     enabled: true,
+    preventDefaultDuringScan: true,
     onScan: (text) => {
       setValue(text);
       handleAutoScan(text);
