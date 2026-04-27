@@ -112,10 +112,10 @@ export const UsersPage = () => {
     try {
       setIsDeleting(true);
       await userService.deleteUser(deleteTarget);
-      showToast('User deactivated successfully', 'success');
+      showToast('User deleted successfully', 'success');
       fetchUsers();
     } catch (error) {
-      showToast('Failed to deactivate user', 'error');
+      showToast('Failed to delete user', 'error');
     } finally {
       setIsDeleting(false);
       setIsDeleteModalOpen(false);
@@ -447,7 +447,9 @@ export const UsersPage = () => {
         title="Confirm Delete"
       >
         <div className="p-4">
-          <p className="mb-6 text-slate-700">Are you sure you want to deactivate this user?</p>
+          <p className="mb-6 text-slate-700">
+            Are you sure you want to delete this user? This action cannot be undone.
+          </p>
           <div className="flex justify-end space-x-3">
             <Button variant="secondary" onClick={() => setIsDeleteModalOpen(false)}>
               Cancel

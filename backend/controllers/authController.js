@@ -126,17 +126,24 @@ export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
-    );
+    if (!id || !/^[a-fA-F0-9]{24}$/.test(id)) {
+      return res.status(400).json({ message: 'Invalid user id' });
+    }
 
+    const user = await User.findById(id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json({ message: 'User deactivated successfully' });
+    // Unassign any processes currently linked to this user
+    await Process.updateMany(
+      { userId: user._id },
+      { $unset: { userId: '' } }
+    );
+
+    await User.findByIdAndDelete(user._id);
+
+    return res.json({ message: 'User deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
