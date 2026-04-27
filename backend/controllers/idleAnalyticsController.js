@@ -230,3 +230,156 @@ export const getDailyEmployeeIdleTime = async (req, res) => {
     });
   }
 };
+
+// GET /api/report/analytics/employee-idle/current?date=YYYY-MM-DD
+// Returns employees who are currently checked IN (security) and NOT in an active work session.
+// idleSince = lastWorkSessionEndTime (if any) else lastCheckInTime
+export const getCurrentIdleEmployees = async (req, res) => {
+  try {
+    const { date } = req.query;
+    const day = String(date || '').trim();
+    if (!day) {
+      return res.status(400).json({ message: 'date is required in format YYYY-MM-DD' });
+    }
+
+    const { start, end } = parseYyyyMmDdToLocalDayRange(day);
+    const now = new Date();
+
+    // Determine who is currently on site: latest attendance log for the date must be IN.
+    const lastAttendanceRows = await AttendanceLog.aggregate([
+      {
+        $match: {
+          workDate: day,
+          scanLocation: 'SECURITY'
+        }
+      },
+      { $sort: { scanTime: -1 } },
+      {
+        $group: {
+          _id: '$employeeId',
+          scanType: { $first: '$scanType' },
+          scanTime: { $first: '$scanTime' },
+          companyId: { $first: '$companyId' }
+        }
+      }
+    ]);
+
+    const onSiteRows = lastAttendanceRows.filter((r) => r?.scanType === 'IN' && r?._id);
+    const onSiteEmployeeIds = onSiteRows.map((r) => r._id);
+
+    if (onSiteEmployeeIds.length === 0) {
+      return res.status(200).json({ date: day, now, rows: [] });
+    }
+
+    const lastCheckInMap = new Map(onSiteRows.map((r) => [String(r._id), r.scanTime]));
+    const companyFromAttendanceMap = new Map(onSiteRows.map((r) => [String(r._id), r.companyId]));
+
+    // Find employees currently in an active work session (endTime missing).
+    const activeSessions = await WorkSession.find({
+      employeeId: { $in: onSiteEmployeeIds },
+      endTime: { $exists: false }
+    })
+      .select('employeeId')
+      .lean();
+
+    const inWorkSet = new Set(activeSessions.map((s) => String(s.employeeId)));
+    const idleEmployeeIds = onSiteEmployeeIds.filter((id) => !inWorkSet.has(String(id)));
+
+    if (idleEmployeeIds.length === 0) {
+      return res.status(200).json({ date: day, now, rows: [] });
+    }
+
+    // For each idle employee, get their last completed work session endTime for the day.
+    const lastEndedSessions = await WorkSession.aggregate([
+      {
+        $match: {
+          employeeId: { $in: idleEmployeeIds },
+          startTime: { $gte: start, $lte: end },
+          endTime: { $ne: null }
+        }
+      },
+      { $sort: { endTime: -1 } },
+      {
+        $group: {
+          _id: '$employeeId',
+          lastEndTime: { $first: '$endTime' },
+          lastProcessName: { $first: '$processName' }
+        }
+      }
+    ]);
+
+    const lastEndMap = new Map(lastEndedSessions.map((r) => [String(r._id), r.lastEndTime]));
+    const lastProcessMap = new Map(lastEndedSessions.map((r) => [String(r._id), r.lastProcessName]));
+
+    const employees = await Employee.find({ _id: { $in: idleEmployeeIds } })
+      .select('name employeeId employeeType companyId')
+      .lean();
+    const employeeMap = new Map(employees.map((e) => [String(e._id), e]));
+
+    const companyIds = Array.from(
+      new Set(
+        employees
+          .map((e) => (e.companyId ? String(e.companyId) : null))
+          .filter(Boolean)
+      )
+    );
+    const companies = await Company.find({ _id: { $in: companyIds } })
+      .select('companyName')
+      .lean();
+    const companyNameMap = new Map(companies.map((c) => [String(c._id), c.companyName]));
+
+    const rows = idleEmployeeIds
+      .map((employeeObjectId) => {
+        const key = String(employeeObjectId);
+        const employee = employeeMap.get(key) || {};
+        const companyId = employee.companyId || companyFromAttendanceMap.get(key) || null;
+        const companyName = companyId ? companyNameMap.get(String(companyId)) : null;
+
+        const lastCheckInTime = lastCheckInMap.get(key) || null;
+        const lastWorkSessionEndTime = lastEndMap.get(key) || null;
+
+        // idleSince should start from the most recent of:
+        // - last completed work session end
+        // - last security check-in (e.g., employee checked out and back in later)
+        let idleSince = null;
+        if (lastWorkSessionEndTime && lastCheckInTime) {
+          idleSince = new Date(lastWorkSessionEndTime) > new Date(lastCheckInTime)
+            ? lastWorkSessionEndTime
+            : lastCheckInTime;
+        } else {
+          idleSince = lastWorkSessionEndTime || lastCheckInTime;
+        }
+        if (!idleSince) return null;
+
+        const idleMinutesRaw = (now.getTime() - new Date(idleSince).getTime()) / 60000;
+        const idleMinutes = idleMinutesRaw < 0 ? 0 : idleMinutesRaw;
+
+        return {
+          employeeId: employeeObjectId,
+          employeeCode: employee.employeeId || null,
+          employeeName: employee.name || 'Unknown Employee',
+          employeeType: employee.employeeType || null,
+          companyId,
+          companyName: companyName || 'Unknown Company',
+          lastCheckInTime,
+          lastWorkSessionEndTime,
+          lastProcessName: lastProcessMap.get(key) || null,
+          idleSince,
+          idleMinutes: round2(idleMinutes),
+          idleHours: round2(idleMinutes / 60)
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b.idleMinutes || 0) - (a.idleMinutes || 0));
+
+    return res.status(200).json({
+      date: day,
+      now,
+      rows
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message || 'Failed to compute current idle employees'
+    });
+  }
+};

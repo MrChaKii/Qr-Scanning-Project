@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { useToast } from '../../hooks/useToast'
-import { getEmployeeDailyIdleTime } from '../../services/analytics.service'
+import { getCurrentIdleEmployees } from '../../services/analytics.service'
 
 const pad2 = (n) => String(n).padStart(2, '0')
 
@@ -41,7 +41,7 @@ export const IdleEmployeesPage = () => {
   const load = async () => {
     setIsLoading(true)
     try {
-      const data = await getEmployeeDailyIdleTime(date)
+      const data = await getCurrentIdleEmployees(date)
       setRows(Array.isArray(data) ? data : [])
     } catch (error) {
       setRows([])
@@ -57,10 +57,7 @@ export const IdleEmployeesPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date])
 
-  const idleOnlyRows = useMemo(() => {
-    const safe = Array.isArray(rows) ? rows : []
-    return safe.filter((r) => (Number(r.idleMinutes) || 0) > 0)
-  }, [rows])
+  const idleOnlyRows = useMemo(() => (Array.isArray(rows) ? rows : []), [rows])
 
   const columns = [
     {
@@ -77,36 +74,21 @@ export const IdleEmployeesPage = () => {
     },
     {
       header: 'Status',
-      accessor: (row) => (
-        <Badge variant={row.isCheckedOut ? 'outline' : 'success'}>
-          {row.isCheckedOut ? 'CHECKED OUT' : 'ON SITE'}
-        </Badge>
-      ),
+      accessor: () => <Badge variant="warning">IDLE</Badge>,
       className: 'whitespace-nowrap',
     },
     {
-      header: 'Check In',
-      accessor: (row) => formatTime(row.checkInTime),
+      header: 'Idle Since',
+      accessor: (row) => formatTime(row.idleSince),
       className: 'text-right whitespace-nowrap',
     },
     {
-      header: 'Check Out',
-      accessor: (row) => (row.isCheckedOut ? formatTime(row.checkOutTime) : '—'),
-      className: 'text-right whitespace-nowrap',
+      header: 'Last Process',
+      accessor: (row) => row.lastProcessName || '—',
     },
     {
-      header: 'Presence (hrs)',
-      accessor: (row) => formatHours(row.presenceHours),
-      className: 'text-right whitespace-nowrap',
-    },
-    {
-      header: 'Work (hrs)',
-      accessor: (row) => formatHours(row.workHours),
-      className: 'text-right whitespace-nowrap',
-    },
-    {
-      header: 'Break (hrs)',
-      accessor: (row) => formatHours(row.breakHours),
+      header: 'Idle (min)',
+      accessor: (row) => (Number.isFinite(Number(row.idleMinutes)) ? Math.round(Number(row.idleMinutes)) : 0),
       className: 'text-right whitespace-nowrap',
     },
     {
