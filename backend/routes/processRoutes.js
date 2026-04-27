@@ -17,13 +17,13 @@ router.use(auth);
 // Create
 router.post('/', authorize('admin'), createProcess);
 // Read all
-router.get('/', authorize('admin', 'supervisor', 'process'), getAllProcesses);
+router.get('/', authorize('admin', 'process'), getAllProcesses);
 // Read by ID
-router.get('/:processId', authorize('admin', 'supervisor', 'process'), getProcessById);
+router.get('/:processId', authorize('admin', 'process'), getProcessById);
 // Read by company
-router.get('/company/:companyId', authorize('admin', 'supervisor'), getProcessesByCompany);
+router.get('/company/:companyId', authorize('admin'), getProcessesByCompany);
 // Read by user
-router.get('/user/:userId', authorize('admin', 'supervisor', 'process'), getProcessesByUser);
+router.get('/user/:userId', authorize('admin', 'process'), getProcessesByUser);
 // Update
 router.put('/:processId', authorize('admin'), updateProcess);
 // Delete

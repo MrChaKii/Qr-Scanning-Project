@@ -18,11 +18,11 @@ router.use(auth);
 router.post('/', authorize('admin'), createEmployee);
 
 // Scoped lookup endpoint (requires employeeId query param)
-router.get('/lookup', authorize('admin', 'supervisor', 'security', 'process'), getEmployeeByEmployeeId);
+router.get('/lookup', authorize('admin', 'security', 'process'), getEmployeeByEmployeeId);
 
-router.get('/', authorize('admin', 'supervisor', 'security'), getAllEmployees);
-router.get('/:id', authorize('admin', 'supervisor', 'security'), getEmployeeById);
-// router.get('/qr/:qrCode', authorize('admin', 'supervisor', 'security'), getEmployeeByQR);
+router.get('/', authorize('admin', 'security', 'process'), getAllEmployees);
+router.get('/:id', authorize('admin', 'security', 'process'), getEmployeeById);
+// router.get('/qr/:qrCode', authorize('admin', 'security', 'process'), getEmployeeByQR);
 router.put('/:id', authorize('admin'), updateEmployee);
 router.delete('/:id', authorize('admin'), deleteEmployee);
 
