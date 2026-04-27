@@ -27,3 +27,10 @@ export const getEmployeeDailyIdleTime = async (date) => {
   })
   return response.data?.rows || []
 }
+
+export const getCurrentIdleEmployees = async (date) => {
+  const response = await api.get('/api/report/analytics/employee-idle/current', {
+    params: { date },
+  })
+  return response.data?.rows || []
+}
