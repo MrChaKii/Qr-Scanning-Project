@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
 import { Input } from '../../components/ui/Input'
@@ -6,7 +7,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../hooks/useToast'
-import { getDailySummary, updateAttendanceLogScanTime } from '../../services/attendance.service'
+import { getDailySummary, getNonCheckoutEmployees, updateAttendanceLogScanTime } from '../../services/attendance.service'
 
 const toTimeValue = (scanTime) => {
   if (!scanTime) return ''
@@ -30,11 +31,14 @@ const toIsoFromDateAndTime = (dateStr, timeStr) => {
 
 export const AttendancePage = () => {
   const { showToast } = useToast()
+  const navigate = useNavigate()
   const [date, setDate] = useState(
     new Date().toISOString().split('T')[0]
   )
   const [summary, setSummary] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [nonCheckoutCount, setNonCheckoutCount] = useState(0)
+  const [isNonCheckoutLoading, setIsNonCheckoutLoading] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editRow, setEditRow] = useState(null)
@@ -80,8 +84,27 @@ export const AttendancePage = () => {
     }
   }
 
+  const fetchNonCheckoutCount = async () => {
+    setIsNonCheckoutLoading(true)
+    try {
+      const data = await getNonCheckoutEmployees(date)
+      const count =
+        typeof data?.count === 'number'
+          ? data.count
+          : Array.isArray(data?.rows)
+            ? data.rows.length
+            : 0
+      setNonCheckoutCount(count)
+    } catch (error) {
+      setNonCheckoutCount(0)
+    } finally {
+      setIsNonCheckoutLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchSummary()
+    fetchNonCheckoutCount()
   }, [date])
 
   const openEdit = (row) => {
@@ -212,12 +235,23 @@ export const AttendancePage = () => {
                 Daily Summary
               </h3>
 
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-auto"
-              />
+              <div className="flex items-end gap-3">
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => navigate(`/attendance/non-checkout?date=${date}`)}
+                  disabled={isNonCheckoutLoading}
+                >
+                  Non Checkout: {isNonCheckoutLoading ? '…' : nonCheckoutCount}
+                </Button>
+
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-auto"
+                />
+              </div>
             </div>
 
             <Table

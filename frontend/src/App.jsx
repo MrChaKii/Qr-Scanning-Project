@@ -18,6 +18,7 @@ import { EmployeesPage } from './pages/Admin/EmployeesPage'
 import { EmployeeDetailPage } from './pages/Admin/EmployeeDetailPage'
 import { UsersPage } from './pages/Admin/UsersPage'
 import { AttendancePage } from './pages/Admin/AttendancePage'
+import { NonCheckoutEmployeesPage } from './pages/Admin/NonCheckoutEmployeesPage'
 import { WorkSessionsPage } from './pages/Admin/WorkSessionsPage'
 import { IdleEmployeesPage } from './pages/Admin/IdleEmployeesPage'
 import { BreaksPage } from './pages/Admin/BreaksPage'
@@ -109,6 +110,15 @@ export function App() {
               element={
                 <ProtectedRoute requiredRole="admin">
                   <AttendancePage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/attendance/non-checkout"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <NonCheckoutEmployeesPage />
                 </ProtectedRoute>
               }
             />

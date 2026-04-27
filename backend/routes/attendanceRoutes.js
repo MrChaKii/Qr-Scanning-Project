@@ -1,5 +1,5 @@
 import express from 'express';
-import { scanAtSecurity, getAttendanceSummary, getDailySummary, getRecentAttendanceLogs, updateAttendanceLogScanTime } from '../controllers/attendanceController.js';
+import { scanAtSecurity, getAttendanceSummary, getDailySummary, getRecentAttendanceLogs, updateAttendanceLogScanTime, getNonCheckoutEmployees } from '../controllers/attendanceController.js';
 import { auth, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -15,6 +15,9 @@ router.get('/daily-summary', getDailySummary);
 
 // GET /api/attendance/recent?limit=10
 router.get('/recent', getRecentAttendanceLogs);
+
+// Admin-only: list employees who haven't checked OUT (latest scan is IN)
+router.get('/non-checkout', auth, authorize('admin'), getNonCheckoutEmployees);
 
 // Admin-only: update check-in/check-out time for an existing attendance log
 router.put('/logs/:id/scan-time', auth, authorize('admin'), updateAttendanceLogScanTime);
