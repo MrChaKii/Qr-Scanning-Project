@@ -148,6 +148,14 @@ export const getRecentAttendanceLogs = async (limit = 10) => {
   return Array.isArray(response.data) ? response.data : []
 }
 
+// Admin-only: employees whose latest SECURITY scan for the date is IN
+export const getNonCheckoutEmployees = async (date) => {
+  const response = await api.get('/api/attendance/non-checkout', {
+    params: { date },
+  })
+  return response.data
+}
+
 // Admin-only: update scan time for a specific attendance log
 export const updateAttendanceLogScanTime = async (attendanceLogId, scanTime) => {
   if (!attendanceLogId) {

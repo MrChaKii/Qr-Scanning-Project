@@ -252,6 +252,89 @@ export const getDailySummary = async (req, res) => {
     res.status(500).json({ message: 'Error fetching daily summary', error: err.message });
   }
 };
+
+// GET /api/attendance/non-checkout?date=YYYY-MM-DD
+// Returns employees whose latest SECURITY attendance log for the date is IN (not checked out).
+export const getNonCheckoutEmployees = async (req, res) => {
+  try {
+    const day = String(req.query?.date || '').trim();
+    if (!day) {
+      return res.status(400).json({ message: 'date is required in format YYYY-MM-DD' });
+    }
+
+    const lastAttendanceRows = await AttendanceLog.aggregate([
+      {
+        $match: {
+          workDate: day,
+          scanLocation: 'SECURITY'
+        }
+      },
+      { $sort: { scanTime: -1 } },
+      {
+        $group: {
+          _id: '$employeeId',
+          scanType: { $first: '$scanType' },
+          scanTime: { $first: '$scanTime' },
+          companyId: { $first: '$companyId' }
+        }
+      }
+    ]);
+
+    const onSiteRows = lastAttendanceRows.filter((r) => r?._id && r?.scanType === 'IN');
+    const employeeObjectIds = onSiteRows.map((r) => r._id);
+
+    if (employeeObjectIds.length === 0) {
+      return res.status(200).json({ date: day, count: 0, rows: [] });
+    }
+
+    const lastCheckInMap = new Map(onSiteRows.map((r) => [String(r._id), r.scanTime]));
+    const companyFromAttendanceMap = new Map(onSiteRows.map((r) => [String(r._id), r.companyId]));
+
+    const employees = await Employee.find({ _id: { $in: employeeObjectIds } })
+      .select('name employeeId companyId')
+      .lean();
+    const employeeMap = new Map(employees.map((e) => [String(e._id), e]));
+
+    const companyIds = Array.from(
+      new Set(
+        employees
+          .map((e) => (e.companyId ? String(e.companyId) : null))
+          .filter(Boolean)
+      )
+    );
+
+    const companies = await Company.find({ _id: { $in: companyIds } })
+      .select('companyName')
+      .lean();
+    const companyNameMap = new Map(companies.map((c) => [String(c._id), c.companyName]));
+
+    const rows = employeeObjectIds.map((employeeObjectId) => {
+      const key = String(employeeObjectId);
+      const employee = employeeMap.get(key) || {};
+      const companyId = employee.companyId || companyFromAttendanceMap.get(key) || null;
+      const companyName = companyId ? companyNameMap.get(String(companyId)) : null;
+
+      return {
+        employeeId: key,
+        employeeName: employee.name || '—',
+        employeeCode: employee.employeeId || '—',
+        companyName: companyName || '—',
+        lastCheckIn: lastCheckInMap.get(key) || null,
+      };
+    });
+
+    return res.status(200).json({
+      date: day,
+      count: rows.length,
+      rows,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: 'Error fetching non-checkout employees',
+      error: err.message,
+    });
+  }
+};
 //   } catch (err) {
 //     res.status(500).json({
 //       message: 'Server error',
