@@ -116,10 +116,6 @@ export const EmployeesPage = () => {
       accessor: (item) => item.companyId?.companyName || item.companyId?.name || '-',
     },
     {
-      header: 'Active',
-      accessor: (item) => (item.isActive ? 'Yes' : 'No'),
-    },
-    {
       header: 'Created At',
       accessor: (item) => item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-',
     },
