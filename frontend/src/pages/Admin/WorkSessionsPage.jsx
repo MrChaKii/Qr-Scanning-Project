@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
 import { Badge } from '../../components/ui/Badge'
@@ -29,6 +30,7 @@ const toIsoOrNull = (dateTimeLocal) => {
 }
 
 export const WorkSessionsPage = () => {
+  const navigate = useNavigate()
   const { showToast } = useToast()
   const [sessions, setSessions] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -167,6 +169,18 @@ export const WorkSessionsPage = () => {
         <h1 className="text-2xl font-bold text-slate-900">
           Work Sessions
         </h1>
+
+        <Button
+          variant="secondary"
+          type="button"
+          onClick={() =>
+            navigate(
+              selectedDate ? `/work-sessions/idle?date=${selectedDate}` : '/work-sessions/idle'
+            )
+          }
+        >
+          View Idle Employees
+        </Button>
       </div>
 
       <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6">
