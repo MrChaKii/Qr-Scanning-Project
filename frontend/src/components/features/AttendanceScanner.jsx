@@ -109,7 +109,9 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
   // This runs in parallel with camera scanning.
   useHardwareScanner({
     enabled: true,
-    preventDefaultDuringScan: true,
+    // Some Zebra WebViews/Chrome builds behave better if we don't suppress keystrokes.
+    preventDefaultDuringScan: false,
+    maxInterKeyDelayMs: 250,
     onScan: (text) => {
       setEmployeeId(text)
       handleAutoScan(text)
