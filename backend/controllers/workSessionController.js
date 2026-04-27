@@ -71,6 +71,14 @@ export const startSession = async (req, res) => {
     const qrObjectId = qr._id;
     const companyId = qr.companyId?._id || qr.companyId;
     const employeeId = qr.employeeId?._id || qr.employeeId || null;
+
+    // Work sessions are employee-specific. Do not allow starting a process session
+    // from a shared/company QR code that isn't linked to an employee.
+    if (!employeeId) {
+      return res.status(400).json({
+        message: 'This QR code is not linked to a specific employee. Please scan an employee QR code.'
+      });
+    }
     // const machineId = qr.machineId?._id || qr.machineId || null;
     // if (!machineId) {
     //   return res.status(400).json({ message: 'machineId must be present in QR code' });
@@ -88,38 +96,36 @@ export const startSession = async (req, res) => {
     }
 
     // Block if employee is already assigned to another open process
-    if (employeeId) {
-      const parallelSession = await WorkSession.findOne({
-        employeeId,
-        endTime: { $exists: false }
+    const parallelSession = await WorkSession.findOne({
+      employeeId,
+      endTime: { $exists: false }
+    });
+    if (parallelSession) {
+      return res.status(400).json({
+        message: 'Employee is already assigned to another open process.'
       });
-      if (parallelSession) {
-        return res.status(400).json({
-          message: 'Employee is already assigned to another open process.'
-        });
-      }
+    }
 
-      // Enforce attendance IN before starting any process work session.
-      // Rule: employee must have at least one attendance log today, and the latest log must be IN.
-      const workDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (matches attendanceController)
-      const lastAttendance = await AttendanceLog.findOne({
-        employeeId,
-        companyId,
-        workDate,
-        scanLocation: 'SECURITY'
-      }).sort({ scanTime: -1 });
+    // Enforce attendance IN before starting any process work session.
+    // Rule: employee must have at least one attendance log today, and the latest log must be IN.
+    const workDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (matches attendanceController)
+    const lastAttendance = await AttendanceLog.findOne({
+      employeeId,
+      companyId,
+      workDate,
+      scanLocation: 'SECURITY'
+    }).sort({ scanTime: -1 });
 
-      if (!lastAttendance) {
-        return res.status(400).json({
-          message: 'Employee must check IN at security before starting a process.'
-        });
-      }
+    if (!lastAttendance) {
+      return res.status(400).json({
+        message: 'Employee must check IN at security before starting a process.'
+      });
+    }
 
-      if (lastAttendance.scanType !== 'IN') {
-        return res.status(400).json({
-          message: 'Employee is currently checked OUT. Please check IN before starting a process.'
-        });
-      }
+    if (lastAttendance.scanType !== 'IN') {
+      return res.status(400).json({
+        message: 'Employee is currently checked OUT. Please check IN before starting a process.'
+      });
     }
     
     const session = new WorkSession({
