@@ -10,7 +10,7 @@ export const useHardwareScanner = ({
   minLength = 3,
   // If the gap between consecutive keys is larger than this,
   // we assume the user is typing manually (not a scanner) and reset.
-  maxInterKeyDelayMs = 120,
+  maxInterKeyDelayMs = 200,
   // Safety: clear the buffer if no keys arrive for this long.
   flushDelayMs = 250,
   // If true, we prevent the characters from being typed into the focused input
@@ -44,37 +44,134 @@ export const useHardwareScanner = ({
       if (typeof key === 'string' && key.length === 1) return key
 
       // Some Android/Zebra WebViews report key="Unidentified".
-      // Fall back to event.code which is often stable.
+      // Fall back to event.code + shift state (important for JSON like {"a":1}).
       const code = e.code
-      if (typeof code !== 'string' || !code) return ''
-      if (code.startsWith('Key') && code.length === 4) return code.slice(3)
-      if (code.startsWith('Digit') && code.length === 6) return code.slice(5)
-      if (code.startsWith('Numpad') && code.length === 7) return code.slice(6)
+      const shift = !!e.shiftKey
 
-      switch (code) {
-        case 'Minus':
-          return '-'
-        case 'Period':
-          return '.'
-        case 'Slash':
-          return '/'
-        case 'Backslash':
-          return '\\'
-        case 'Space':
-          return ' '
-        case 'Equal':
-          return '='
-        default:
-          return ''
+      if (typeof code === 'string' && code) {
+        if (code.startsWith('Key') && code.length === 4) {
+          const ch = code.slice(3)
+          return shift ? ch.toUpperCase() : ch.toLowerCase()
+        }
+
+        if (code.startsWith('Digit') && code.length === 6) {
+          const d = code.slice(5)
+          if (!shift) return d
+          const shiftedDigits = {
+            0: ')',
+            1: '!',
+            2: '@',
+            3: '#',
+            4: '$',
+            5: '%',
+            6: '^',
+            7: '&',
+            8: '*',
+            9: '(',
+          }
+          return shiftedDigits[d] ?? d
+        }
+
+        if (code.startsWith('Numpad') && code.length === 7) {
+          // NumpadX where X is 0-9
+          return code.slice(6)
+        }
+
+        switch (code) {
+          case 'Space':
+            return ' '
+          case 'Minus':
+            return shift ? '_' : '-'
+          case 'Equal':
+            return shift ? '+' : '='
+          case 'Backquote':
+            return shift ? '~' : '`'
+          case 'BracketLeft':
+            return shift ? '{' : '['
+          case 'BracketRight':
+            return shift ? '}' : ']'
+          case 'Backslash':
+            return shift ? '|' : '\\'
+          case 'Semicolon':
+            return shift ? ':' : ';'
+          case 'Quote':
+            return shift ? '"' : "'"
+          case 'Comma':
+            return shift ? '<' : ','
+          case 'Period':
+            return shift ? '>' : '.'
+          case 'Slash':
+            return shift ? '?' : '/'
+          default:
+            break
+        }
       }
+
+      // Last-resort fallback for older WebViews
+      const keyCode = e.keyCode || e.which
+      if (typeof keyCode === 'number') {
+        // Digits
+        if (keyCode >= 48 && keyCode <= 57) {
+          const digit = String.fromCharCode(keyCode)
+          if (!shift) return digit
+          const shiftedDigits = {
+            0: ')',
+            1: '!',
+            2: '@',
+            3: '#',
+            4: '$',
+            5: '%',
+            6: '^',
+            7: '&',
+            8: '*',
+            9: '(',
+          }
+          return shiftedDigits[digit] ?? digit
+        }
+
+        // Letters
+        if (keyCode >= 65 && keyCode <= 90) {
+          const upper = String.fromCharCode(keyCode)
+          return shift ? upper : upper.toLowerCase()
+        }
+
+        // Common punctuation
+        const punctuation = {
+          32: ' ',
+          186: shift ? ':' : ';',
+          187: shift ? '+' : '=',
+          188: shift ? '<' : ',',
+          189: shift ? '_' : '-',
+          190: shift ? '>' : '.',
+          191: shift ? '?' : '/',
+          192: shift ? '~' : '`',
+          219: shift ? '{' : '[',
+          220: shift ? '|' : '\\',
+          221: shift ? '}' : ']',
+          222: shift ? '"' : "'",
+        }
+        if (Object.prototype.hasOwnProperty.call(punctuation, keyCode)) {
+          return punctuation[keyCode]
+        }
+      }
+
+      return ''
     }
 
     const isTerminatorKey = (e) => {
       const key = e.key
       if (terminatorKeys.includes(key)) return true
-      // Fallback for key="Unidentified".
+
+      // Fallbacks for key="Unidentified".
       const code = e.code
-      return (code === 'Enter' && terminatorKeys.includes('Enter')) || (code === 'Tab' && terminatorKeys.includes('Tab'))
+      if (code === 'Enter' && terminatorKeys.includes('Enter')) return true
+      if (code === 'Tab' && terminatorKeys.includes('Tab')) return true
+
+      const keyCode = e.keyCode || e.which
+      if (keyCode === 13 && terminatorKeys.includes('Enter')) return true
+      if (keyCode === 9 && terminatorKeys.includes('Tab')) return true
+
+      return false
     }
 
     const clearBuffer = () => {
