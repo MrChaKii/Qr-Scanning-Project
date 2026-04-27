@@ -6,8 +6,10 @@ import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { Select } from '../../components/ui/Select'
 import { useToast } from '../../hooks/useToast'
 import { getWorkSessions, updateWorkSessionTimes } from '../../services/workSession.service'
+import { getProcesses } from '../../services/process.service'
 
 const toDateTimeLocalValue = (value) => {
   if (!value) return ''
@@ -35,6 +37,8 @@ export const WorkSessionsPage = () => {
   const [sessions, setSessions] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState('')
+  const [processes, setProcesses] = useState([])
+  const [selectedProcess, setSelectedProcess] = useState('')
 
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -54,13 +58,35 @@ export const WorkSessionsPage = () => {
     }
   }
 
+  const fetchProcesses = async () => {
+    try {
+      const data = await getProcesses()
+      setProcesses(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Failed to fetch processes', error)
+      showToast('Failed to load processes', 'error')
+    }
+  }
+
   useEffect(() => {
+    fetchProcesses()
     fetchSessions(selectedDate)
   }, [])
 
   useEffect(() => {
     fetchSessions(selectedDate)
   }, [selectedDate])
+
+  const normalizedSelectedProcess = String(selectedProcess || '').trim().toLowerCase()
+  const filteredSessions = normalizedSelectedProcess
+    ? sessions.filter((s) => String(s?.processName || '').trim().toLowerCase() === normalizedSelectedProcess)
+    : sessions
+
+  const emptyMessage = (() => {
+    const datePart = selectedDate ? ` for ${selectedDate}` : ''
+    const processPart = selectedProcess ? ` (${selectedProcess})` : ''
+    return `No work sessions found${datePart}${processPart}`
+  })()
 
   const openEdit = (session) => {
     setEditSession(session)
@@ -194,6 +220,21 @@ export const WorkSessionsPage = () => {
             />
           </div>
 
+          <div className="w-full md:max-w-xs">
+            <Select
+              label="Filter by process"
+              value={selectedProcess}
+              onChange={(e) => setSelectedProcess(e.target.value)}
+              placeholder="All processes"
+              options={(Array.isArray(processes) ? processes : [])
+                .filter((p) => p?.processName)
+                .map((p) => ({
+                  value: p.processName,
+                  label: p.processName,
+                }))}
+            />
+          </div>
+
           <div className="flex gap-2">
             <Button
               variant="secondary"
@@ -208,11 +249,11 @@ export const WorkSessionsPage = () => {
       </div>
 
       <Table
-        data={sessions}
+        data={filteredSessions}
         columns={columns}
         keyExtractor={(item) => item._id}
         isLoading={isLoading}
-        emptyMessage={selectedDate ? `No work sessions found for ${selectedDate}` : 'No work sessions found'}
+        emptyMessage={emptyMessage}
       />
 
       <Modal
