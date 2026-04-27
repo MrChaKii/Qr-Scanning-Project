@@ -31,7 +31,7 @@ export const userService = {
     return response.data;
   },
 
-  // Delete user (soft delete)
+  // Delete user
   deleteUser: async (userId) => {
     const response = await api.delete(`/api/auth/users/${userId}`);
     return response.data;

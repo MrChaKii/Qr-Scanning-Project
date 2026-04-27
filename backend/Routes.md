@@ -84,7 +84,7 @@ All routes below require:
 
 #### Delete User
 - **Endpoint**: `DELETE /users/:id`
-- **Description**: Deletes (deactivates) a user account
+- **Description**: Deletes a user account
 - **Authentication**: Required (Admin only)
 - **URL Parameters**:
   - `id`: User ID
