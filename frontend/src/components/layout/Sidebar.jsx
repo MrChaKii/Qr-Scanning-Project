@@ -12,6 +12,7 @@ import {
   Cpu,
   UserCog,
   Scan,
+  ClockFading
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -59,6 +60,11 @@ export const Sidebar = () => {
       to: '/breaks',
       icon: Coffee,
       label: 'Breaks',
+    },
+    {
+      to: '/changeovers',
+      icon: ClockFading,
+      label: 'Temporary Changeovers',
     },
     {
       to: '/analytics',

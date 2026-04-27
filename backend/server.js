@@ -15,6 +15,7 @@ import scanRoutes from './routes/scanRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import processRoutes from './routes/processRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
+import changeoverRoutes from './routes/changeoverRoutes.js';
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/work-session', workSessionRoutes);
 app.use('/api/break-session', breakSessionRoutes);
+app.use('/api/changeovers', changeoverRoutes);
 app.use('/api/scan', scanRoutes);
 app.use('/api/report',adminRoutes);
 app.use('/api/processes', processRoutes);

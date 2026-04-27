@@ -1,6 +1,7 @@
 import AttendanceLog from '../models/AttendanceLog.js';
 import WorkSession from '../models/WorkSession.js';
 import BreakSession from '../models/BreakSession.js';
+import TemporaryChangeover from '../models/TemporaryChangeover.js';
 import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
 
@@ -32,7 +33,7 @@ const safeDate = (value) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const computeTotalBreakMinutesForRange = async ({ start, end, now }) => {
+const computeTotalBreakMinutesForRange = async ({ workDate, start, end, now }) => {
   const startIso = start.toISOString();
   const endIso = end.toISOString();
 
@@ -43,6 +44,12 @@ const computeTotalBreakMinutesForRange = async ({ start, end, now }) => {
   })
     .select('startTime endTime durationMinutes')
     .lean();
+
+  const changeovers = workDate
+    ? await TemporaryChangeover.find({ workDate: String(workDate) })
+        .select('durationMinutes')
+        .lean()
+    : [];
 
   let total = 0;
   for (const brk of breaks) {
@@ -58,6 +65,11 @@ const computeTotalBreakMinutesForRange = async ({ start, end, now }) => {
     const brkEnd = safeDate(brk.endTime) || now;
     const minutes = (brkEnd.getTime() - brkStart.getTime()) / 60000;
     if (minutes > 0) total += minutes;
+  }
+
+  for (const ch of changeovers) {
+    const n = Number(ch?.durationMinutes);
+    if (!Number.isNaN(n) && n > 0) total += n;
   }
 
   return total;
@@ -154,7 +166,7 @@ export const getDailyEmployeeIdleTime = async (req, res) => {
           }
         }
       ]),
-      computeTotalBreakMinutesForRange({ start, end, now }),
+      computeTotalBreakMinutesForRange({ workDate: day, start, end, now }),
       Employee.find({ _id: { $in: employeeIds } })
         .select('name employeeId employeeType companyId')
         .lean()
