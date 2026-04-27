@@ -203,11 +203,12 @@ export const useHardwareScanner = ({
       const now = Date.now()
       const timeSinceLast = lastKeyAtRef.current ? now - lastKeyAtRef.current : 0
 
-      const likelyScanBurst = !!bufferRef.current && timeSinceLast > 0 && timeSinceLast <= maxInterKeyDelayMs
-      const shouldSuppress =
-        preventDefaultDuringScan &&
-        likelyScanBurst &&
-        isEditableElement(e.target)
+      const hasBuffer = !!bufferRef.current
+      const likelyScanBurst = hasBuffer && timeSinceLast > 0 && timeSinceLast <= maxInterKeyDelayMs
+      // When a scan is in progress, Zebra will often send a suffix (Enter/Tab).
+      // If focus is on a button/link (e.g. Logout), that suffix can trigger navigation.
+      // Suppress default behavior during an active scan buffer when enabled.
+      const shouldSuppress = preventDefaultDuringScan && (hasBuffer || likelyScanBurst)
 
       // If the gap is too large, treat it as manual typing and start a new buffer.
       if (bufferRef.current && timeSinceLast > maxInterKeyDelayMs) {
@@ -220,6 +221,7 @@ export const useHardwareScanner = ({
       if (isTerminatorKey(e)) {
         if (shouldSuppress) {
           e.preventDefault()
+          e.stopPropagation()
         }
         const scannedText = bufferRef.current.trim()
         clearBuffer()
@@ -236,6 +238,7 @@ export const useHardwareScanner = ({
         if (shouldSuppress) {
           // If it looks like a scan burst, avoid polluting focused inputs.
           e.preventDefault()
+          e.stopPropagation()
         }
 
         bufferRef.current += printable
