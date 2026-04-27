@@ -210,34 +210,6 @@ export const UsersPage = () => {
       accessor: (row) => row.email || '-'
     },
     {
-      header: 'Assigned Processes',
-      accessor: (row) => {
-        if (!row.assignedProcesses || row.assignedProcesses.length === 0) {
-          return <span className="text-slate-400">None</span>;
-        }
-        return (
-          <div className="flex flex-wrap gap-1">
-            {row.assignedProcesses.map((processId, index) => {
-              const process = processes.find(p => p.processId === processId);
-              return (
-                <Badge key={index} className="bg-blue-100 text-blue-800">
-                  {process ? process.processName : processId}
-                </Badge>
-              );
-            })}
-          </div>
-        );
-      }
-    },
-    {
-      header: 'Status',
-      accessor: (row) => (
-        <Badge className={row.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-          {row.isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      )
-    },
-    {
       header: 'Actions',
       accessor: (row) => (
         <div className="flex gap-2">
@@ -361,13 +333,6 @@ export const UsersPage = () => {
             name="email"
             type="email"
             value={formData.email}
-            onChange={handleInputChange}
-          />
-
-          <Input
-            label="Contact Number"
-            name="contactNumber"
-            value={formData.contactNumber}
             onChange={handleInputChange}
           />
 
