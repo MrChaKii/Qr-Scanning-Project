@@ -71,18 +71,6 @@ export const startSession = async (req, res) => {
     const qrObjectId = qr._id;
     const companyId = qr.companyId?._id || qr.companyId;
     const employeeId = qr.employeeId?._id || qr.employeeId || null;
-
-    // Work sessions are employee-specific. Do not allow starting a process session
-    // from a shared/company QR code that isn't linked to an employee.
-    if (!employeeId) {
-      return res.status(400).json({
-        message: 'This QR code is not linked to a specific employee. Please scan an employee QR code.'
-      });
-    }
-    // const machineId = qr.machineId?._id || qr.machineId || null;
-    // if (!machineId) {
-    //   return res.status(400).json({ message: 'machineId must be present in QR code' });
-    // }
     // Prevent overlapping sessions
     const openSession = await WorkSession.findOne({
       qrId: qrObjectId,
