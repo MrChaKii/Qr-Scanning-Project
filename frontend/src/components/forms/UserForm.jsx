@@ -22,7 +22,6 @@ export const UserForm = ({ initialData, onSuccess, onCancel }) => {
 
   const roleOptions = [
     { value: 'admin', label: 'Admin' },
-    { value: 'supervisor', label: 'Supervisor' },
     { value: 'security', label: 'Security' },
     { value: 'process', label: 'Process' },
   ]

@@ -10,7 +10,7 @@ router.use(auth);
 // Create
 router.post('/', authorize('admin'), createCompany);
 // Read
-router.get('/', authorize('admin', 'supervisor'), getAllCompanies);
+router.get('/', authorize('admin'), getAllCompanies);
 // Update
 router.put('/:companyId', authorize('admin'), updateCompany);
 // Delete
