@@ -22,6 +22,7 @@ import { NonCheckoutEmployeesPage } from './pages/Admin/NonCheckoutEmployeesPage
 import { WorkSessionsPage } from './pages/Admin/WorkSessionsPage'
 import { IdleEmployeesPage } from './pages/Admin/IdleEmployeesPage'
 import { BreaksPage } from './pages/Admin/BreaksPage'
+import { ChangeoversPage } from './pages/Admin/ChangeoversPage'
 import { ProcessesPage } from './pages/Admin/ProcessesPage'
 import { AnalyticsPage } from './pages/Admin/AnalyticsPage'
 import { PublicDashboardPage } from './pages/Public/PublicDashboardPage'
@@ -146,6 +147,15 @@ export function App() {
               element={
                 <ProtectedRoute requiredRole="admin">
                   <BreaksPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/changeovers"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ChangeoversPage />
                 </ProtectedRoute>
               }
             />
