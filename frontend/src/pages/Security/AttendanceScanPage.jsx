@@ -36,7 +36,7 @@ export const AttendanceScanPage = () => {
             Attendance Scanner
           </h2>
           <p className="text-slate-600">
-            Scan employee QR codes to record attendance
+            Scan employee QR codes or enter an Employee ID to record attendance
           </p>
         </div>
 

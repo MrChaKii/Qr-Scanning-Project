@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { Button } from '../ui/Button'
+import { Input } from '../ui/Input'
 import { QrCode, CheckCircle, XCircle } from 'lucide-react'
 import { scanAttendance } from '../../services/attendance.service'
 import { useToast } from '../../hooks/useToast'
@@ -39,14 +40,14 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
   const handleAutoScan = async (valueOverride) => {
     if (isLoading) return
 
-    if (scanLockRef.current) return
-    scanLockRef.current = true
-
     const raw = (valueOverride ?? employeeId).trim()
     if (!raw) {
       showToast('Please scan a QR code', 'warning')
       return
     }
+
+    if (scanLockRef.current) return
+    scanLockRef.current = true
 
     setIsLoading(true)
     let didSucceed = false
@@ -280,6 +281,16 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
               </Button>
             </div>
           )}
+        </div>
+
+        <div>
+          <Input
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            placeholder="Scan QR or enter Employee ID (e.g. EMP001)"
+            autoFocus
+            disabled={isLoading}
+          />
         </div>
 
         {lastScan && (

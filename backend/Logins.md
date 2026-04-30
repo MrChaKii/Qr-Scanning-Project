@@ -2,11 +2,6 @@
 - **username**: admin
 - **password**: Admin@123
 
-
-# Supervisor logins
-- **username**: supervisor2
-- **password**: supervisor2@123
-
 # Security logins
 - **username**: Security
 - **password**: sec123
