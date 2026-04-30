@@ -21,8 +21,12 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
   const scanLockRef = useRef(false)
   const cooldownTimeoutRef = useRef(null)
   const lastDecodedRef = useRef({ text: null, at: 0 })
+  const inputDebounceRef = useRef(null)
+  const lastInputAtRef = useRef(0)
 
   const COOLDOWN_MS = 5000
+  const INPUT_AUTOSCAN_DELAY_MS = 150
+  const TERMINATOR_GUARD_MS = 500
 
   const { showToast } = useToast()
 
@@ -242,9 +246,29 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
         clearTimeout(cooldownTimeoutRef.current)
         cooldownTimeoutRef.current = null
       }
+      if (inputDebounceRef.current) {
+        clearTimeout(inputDebounceRef.current)
+        inputDebounceRef.current = null
+      }
       stopCameraScan()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Enter' && e.key !== 'Tab') return
+      const sinceLastInput = Date.now() - lastInputAtRef.current
+      if (sinceLastInput >= 0 && sinceLastInput <= TERMINATOR_GUARD_MS) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true)
+    }
+  }, [])
 
   return (
     <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-slate-200">
@@ -286,7 +310,19 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
         <div>
           <Input
             value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
+            onChange={(e) => {
+              const nextValue = e.target.value
+              setEmployeeId(nextValue)
+              lastInputAtRef.current = Date.now()
+
+              if (inputDebounceRef.current) {
+                clearTimeout(inputDebounceRef.current)
+              }
+
+              inputDebounceRef.current = setTimeout(() => {
+                handleAutoScan(nextValue)
+              }, INPUT_AUTOSCAN_DELAY_MS)
+            }}
             placeholder="Scan QR or enter Employee ID (e.g. EMP001)"
             autoFocus
             disabled={isLoading}
