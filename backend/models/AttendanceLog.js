@@ -26,6 +26,10 @@ const AttendanceLogSchema = new mongoose.Schema({
     enum: ['SECURITY'],
     required: true
   },
+  shift: {
+    type: String,
+    enum: ['DAY', 'NIGHT']
+  },
   scanTime: {
     type: Date,
     required: true
