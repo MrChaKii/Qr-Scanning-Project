@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../hooks/useToast'
 import { getDailySummary, getNonCheckoutEmployees, updateAttendanceLogScanTime } from '../../services/attendance.service'
+import { getShiftTimes, upsertShiftTimes } from '../../services/shiftTime.service'
 
 const toTimeValue = (scanTime) => {
   if (!scanTime) return ''
@@ -29,6 +30,11 @@ const toIsoFromDateAndTime = (dateStr, timeStr) => {
   return local.toISOString()
 }
 
+const formatShiftWindow = (start, end, fallback = 'Not set') => {
+  if (!start || !end) return fallback
+  return `${start} - ${end}`
+}
+
 export const AttendancePage = () => {
   const { showToast } = useToast()
   const navigate = useNavigate()
@@ -44,6 +50,16 @@ export const AttendancePage = () => {
   const [editRow, setEditRow] = useState(null)
   const [editCheckIn, setEditCheckIn] = useState('')
   const [editCheckOut, setEditCheckOut] = useState('')
+  const [shiftTimes, setShiftTimes] = useState(null)
+  const [isShiftLoading, setIsShiftLoading] = useState(false)
+  const [isShiftOpen, setIsShiftOpen] = useState(false)
+  const [isShiftSaving, setIsShiftSaving] = useState(false)
+  const [shiftForm, setShiftForm] = useState({
+    dayStart: '',
+    dayEnd: '',
+    nightStart: '',
+    nightEnd: '',
+  })
 
   const fetchSummary = async () => {
     setIsLoading(true)
@@ -59,22 +75,27 @@ export const AttendancePage = () => {
       }
       
       // Transform the API response to match the table structure
-      const transformedData = data.map((item) => ({
-        id:
-          item.employee?._id ||
-          item.employee?.employeeId ||
-          item.firstIn?._id ||
-          item.lastOut?._id ||
-          `${item.employee?.name || 'employee'}-${date}`,
-        employeeId: item.employee?.employeeId || 'N/A',
-        name: item.employee?.name || 'Unknown',
-        checkIn: item.firstIn?.scanTime,
-        checkOut: item.lastOut?.scanTime,
-        checkInLogId: item.firstIn?._id,
-        checkOutLogId: item.lastOut?._id,
-        status: item.firstIn && item.lastOut ? 'Present' : item.firstIn ? 'Partial' : 'Absent',
-        company: item.company?.companyName || 'N/A'
-      }))
+      const transformedData = data.map((item) => {
+        const workDateFromLog = item.firstIn?.workDate || item.lastOut?.workDate || date
+        return {
+          id:
+            item.employee?._id ||
+            item.employee?.employeeId ||
+            item.firstIn?._id ||
+            item.lastOut?._id ||
+            `${item.employee?.name || 'employee'}-${date}`,
+          employeeId: item.employee?.employeeId || 'N/A',
+          name: item.employee?.name || 'Unknown',
+          checkIn: item.firstIn?.scanTime,
+          checkOut: item.lastOut?.scanTime,
+          checkInLogId: item.firstIn?._id,
+          checkOutLogId: item.lastOut?._id,
+          shift: item.firstIn?.shift || item.lastOut?.shift || null,
+          workDate: workDateFromLog,
+          status: item.firstIn && item.lastOut ? 'Present' : item.firstIn ? 'Partial' : 'Absent',
+          company: item.company?.companyName || 'N/A'
+        }
+      })
       setSummary(transformedData)
     } catch (error) {
       console.error('Failed to fetch attendance summary', error)
@@ -102,10 +123,72 @@ export const AttendancePage = () => {
     }
   }
 
+  const fetchShiftTimes = async () => {
+    setIsShiftLoading(true)
+    try {
+      const data = await getShiftTimes()
+      setShiftTimes(data)
+    } catch (error) {
+      console.error('Failed to fetch shift times', error)
+      showToast('Failed to load shift times', 'error')
+    } finally {
+      setIsShiftLoading(false)
+    }
+  }
+
+  const openShiftModal = () => {
+    setShiftForm({
+      dayStart: shiftTimes?.dayStart || '',
+      dayEnd: shiftTimes?.dayEnd || '',
+      nightStart: shiftTimes?.nightStart || '',
+      nightEnd: shiftTimes?.nightEnd || '',
+    })
+    setIsShiftOpen(true)
+  }
+
+  const closeShiftModal = () => {
+    if (isShiftSaving) return
+    setIsShiftOpen(false)
+  }
+
+  const handleShiftChange = (field) => (e) => {
+    const value = e.target.value
+    setShiftForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  const saveShiftTimes = async () => {
+    const { dayStart, dayEnd, nightStart, nightEnd } = shiftForm
+    if (!dayStart || !dayEnd || !nightStart || !nightEnd) {
+      showToast('Please fill all shift times', 'warning')
+      return
+    }
+
+    setIsShiftSaving(true)
+    try {
+      const updated = await upsertShiftTimes({ dayStart, dayEnd, nightStart, nightEnd })
+      setShiftTimes(updated)
+      showToast('Shift times updated', 'success')
+      setIsShiftOpen(false)
+    } catch (error) {
+      console.error('Failed to update shift times', error)
+      const msg = error?.response?.data?.message || error?.message || 'Failed to update shift times'
+      showToast(msg, 'error')
+    } finally {
+      setIsShiftSaving(false)
+    }
+  }
+
   useEffect(() => {
     fetchSummary()
     fetchNonCheckoutCount()
   }, [date])
+
+  useEffect(() => {
+    fetchShiftTimes()
+  }, [])
 
   const openEdit = (row) => {
     setEditRow(row)
@@ -127,10 +210,11 @@ export const AttendancePage = () => {
     setIsSaving(true)
     try {
       const updates = []
+      const baseDate = editRow.workDate || date
 
       if (editRow.checkInLogId) {
         const original = toTimeValue(editRow.checkIn)
-        const iso = editCheckIn && editCheckIn !== original ? toIsoFromDateAndTime(date, editCheckIn) : null
+        const iso = editCheckIn && editCheckIn !== original ? toIsoFromDateAndTime(baseDate, editCheckIn) : null
         if (iso) {
           updates.push(updateAttendanceLogScanTime(editRow.checkInLogId, iso))
         }
@@ -138,7 +222,7 @@ export const AttendancePage = () => {
 
       if (editRow.checkOutLogId) {
         const original = toTimeValue(editRow.checkOut)
-        const iso = editCheckOut && editCheckOut !== original ? toIsoFromDateAndTime(date, editCheckOut) : null
+        const iso = editCheckOut && editCheckOut !== original ? toIsoFromDateAndTime(baseDate, editCheckOut) : null
         if (iso) {
           updates.push(updateAttendanceLogScanTime(editRow.checkOutLogId, iso))
         }
@@ -186,6 +270,22 @@ export const AttendancePage = () => {
           : '-',
     },
     {
+      header: 'Shift',
+      accessor: (item) => (
+        <Badge
+          variant={
+            item.shift === 'DAY'
+              ? 'success'
+              : item.shift === 'NIGHT'
+              ? 'warning'
+              : 'outline'
+          }
+        >
+          {item.shift || '—'}
+        </Badge>
+      ),
+    },
+    {
       header: 'Status',
       accessor: (item) => (
         <Badge
@@ -216,6 +316,13 @@ export const AttendancePage = () => {
       className: 'whitespace-nowrap',
     },
   ]
+
+  const dayWindow = isShiftLoading
+    ? 'Loading...'
+    : formatShiftWindow(shiftTimes?.dayStart, shiftTimes?.dayEnd)
+  const nightWindow = isShiftLoading
+    ? 'Loading...'
+    : formatShiftWindow(shiftTimes?.nightStart, shiftTimes?.nightEnd)
 
   return (
     <DashboardLayout>
@@ -250,8 +357,27 @@ export const AttendancePage = () => {
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="w-auto"
+                  disabled={isEditOpen}
                 />
               </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                <span className="font-medium">Day:</span>
+                <Badge variant="outline">{dayWindow}</Badge>
+                <span className="font-medium">Night:</span>
+                <Badge variant="outline">{nightWindow}</Badge>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openShiftModal}
+                disabled={isShiftLoading}
+              >
+                {shiftTimes ? 'Edit Shift Times' : 'Set Shift Times'}
+              </Button>
             </div>
 
             <Table
@@ -264,6 +390,50 @@ export const AttendancePage = () => {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={isShiftOpen}
+        onClose={closeShiftModal}
+        title="Shift Times"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Day Start"
+              type="time"
+              value={shiftForm.dayStart}
+              onChange={handleShiftChange('dayStart')}
+            />
+            <Input
+              label="Day End"
+              type="time"
+              value={shiftForm.dayEnd}
+              onChange={handleShiftChange('dayEnd')}
+            />
+            <Input
+              label="Night Start"
+              type="time"
+              value={shiftForm.nightStart}
+              onChange={handleShiftChange('nightStart')}
+            />
+            <Input
+              label="Night End"
+              type="time"
+              value={shiftForm.nightEnd}
+              onChange={handleShiftChange('nightEnd')}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={closeShiftModal} disabled={isShiftSaving}>
+              Cancel
+            </Button>
+            <Button onClick={saveShiftTimes} isLoading={isShiftSaving}>
+              Save
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={isEditOpen}

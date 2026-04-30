@@ -2,10 +2,44 @@ import AttendanceLog from '../models/AttendanceLog.js';
 import QRCode from '../models/QRCode.js';
 import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
+import ShiftTime from '../models/ShiftTime.js';
 
 const toWorkDate = (date) => {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
   return date.toISOString().slice(0, 10);
+};
+
+const parseTimeToMinutes = (value) => {
+  if (typeof value !== 'string') return null;
+  const [hh, mm] = value.split(':').map((v) => Number(v));
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  return hh * 60 + mm;
+};
+
+const isTimeInRange = (value, start, end) => {
+  if (start === null || end === null) return false;
+  if (start <= end) return value >= start && value < end;
+  return value >= start || value < end;
+};
+
+const getShiftForDate = (date, shiftTimes) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  if (!shiftTimes) return null;
+
+  const dayStart = parseTimeToMinutes(shiftTimes.dayStart);
+  const dayEnd = parseTimeToMinutes(shiftTimes.dayEnd);
+  const nightStart = parseTimeToMinutes(shiftTimes.nightStart);
+  const nightEnd = parseTimeToMinutes(shiftTimes.nightEnd);
+
+  if ([dayStart, dayEnd, nightStart, nightEnd].some((v) => v === null)) {
+    return null;
+  }
+
+  const minutes = date.getHours() * 60 + date.getMinutes();
+
+  if (isTimeInRange(minutes, dayStart, dayEnd)) return 'DAY';
+  if (isTimeInRange(minutes, nightStart, nightEnd)) return 'NIGHT';
+  return null;
 };
 
 // GET /api/attendance/recent?limit=10
@@ -87,6 +121,8 @@ export const scanAtSecurity = async (req, res) => {
 
     const now = new Date();
     const workDate = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const shiftTimes = await ShiftTime.findOne().sort({ updatedAt: -1 }).lean();
+    const shift = getShiftForDate(now, shiftTimes);
 
     // Accept scanType from request, default to alternating if not provided
     let type = scanType;
@@ -115,7 +151,8 @@ export const scanAtSecurity = async (req, res) => {
       scanType: type,
       scanLocation: context, // ✅ Use context instead of hardcoded 'SECURITY'
       scanTime: now,
-      workDate
+      workDate,
+      shift
     });
 
     await attendance.save();
@@ -162,12 +199,22 @@ export const updateAttendanceLogScanTime = async (req, res) => {
       return res.status(400).json({ message: 'Only SECURITY attendance logs can be edited here' });
     }
 
-    log.scanTime = parsed;
     const newWorkDate = toWorkDate(parsed);
     if (!newWorkDate) {
       return res.status(400).json({ message: 'Failed to compute workDate from scanTime' });
     }
+    if (newWorkDate !== log.workDate) {
+      return res.status(400).json({ message: 'Changing the attendance date is not allowed' });
+    }
+
+    const shiftTimes = await ShiftTime.findOne().sort({ updatedAt: -1 }).lean();
+    const shift = getShiftForDate(parsed, shiftTimes);
+
+    log.scanTime = parsed;
     log.workDate = newWorkDate;
+    if (shift) {
+      log.shift = shift;
+    }
     log.editedAt = new Date();
     if (req.userId) {
       log.editedBy = req.userId;

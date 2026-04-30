@@ -16,6 +16,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import processRoutes from './routes/processRoutes.js';
 import publicRoutes from './routes/publicRoutes.js';
 import changeoverRoutes from './routes/changeoverRoutes.js';
+import shiftTimeRoutes from './routes/shiftTimeRoutes.js';
 
 dotenv.config();
 
@@ -42,6 +43,7 @@ app.use('/api/scan', scanRoutes);
 app.use('/api/report',adminRoutes);
 app.use('/api/processes', processRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/shift-times', shiftTimeRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
