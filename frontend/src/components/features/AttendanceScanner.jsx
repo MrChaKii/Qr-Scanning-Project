@@ -339,6 +339,8 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
             placeholder="Scan QR or enter Employee ID (e.g. EMP001)"
             autoFocus
             disabled={isLoading}
+            readOnly
+            inputMode="none"
           />
         </div>
 
