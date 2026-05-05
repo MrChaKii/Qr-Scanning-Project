@@ -257,7 +257,16 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key !== 'Enter' && e.key !== 'Tab') return
+      const isTerminator = e.key === 'Enter' || e.key === 'Tab'
+      if (!isTerminator) return
+
+      const input = inputRef.current
+      if (input && document.activeElement === input) {
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
+
       const sinceLastInput = Date.now() - lastInputAtRef.current
       if (sinceLastInput >= 0 && sinceLastInput <= TERMINATOR_GUARD_MS) {
         e.preventDefault()
