@@ -17,6 +17,7 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
   const [cameraError, setCameraError] = useState(null)
   const cameraRef = useRef(null)
   const html5QrcodeScannerRef = useRef(null)
+  const inputRef = useRef(null)
   const isMountedRef = useRef(true)
   const scanLockRef = useRef(false)
   const cooldownTimeoutRef = useRef(null)
@@ -309,6 +310,7 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
 
         <div>
           <Input
+            ref={inputRef}
             value={employeeId}
             onChange={(e) => {
               const nextValue = e.target.value
@@ -322,6 +324,17 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
               inputDebounceRef.current = setTimeout(() => {
                 handleAutoScan(nextValue)
               }, INPUT_AUTOSCAN_DELAY_MS)
+            }}
+            onBlur={(e) => {
+              const nextTarget = e.relatedTarget
+              if (nextTarget?.closest?.('[data-focus-exempt="true"]')) {
+                return
+              }
+              setTimeout(() => {
+                const input = inputRef.current
+                if (!input || input.disabled) return
+                input.focus()
+              }, 0)
             }}
             placeholder="Scan QR or enter Employee ID (e.g. EMP001)"
             autoFocus
