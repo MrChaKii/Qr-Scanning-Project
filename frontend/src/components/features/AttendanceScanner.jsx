@@ -332,6 +332,12 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
                 handleAutoScan(nextValue)
               }, INPUT_AUTOSCAN_DELAY_MS)
             }}
+            onBeforeInput={(e) => {
+              e.preventDefault()
+            }}
+            onPaste={(e) => {
+              e.preventDefault()
+            }}
             onBlur={(e) => {
               const nextTarget = e.relatedTarget
               if (nextTarget?.closest?.('[data-focus-exempt="true"]')) {
@@ -346,8 +352,6 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
             placeholder="Scan QR or enter Employee ID (e.g. EMP001)"
             autoFocus
             disabled={isLoading}
-            readOnly
-            inputMode="none"
           />
         </div>
 
