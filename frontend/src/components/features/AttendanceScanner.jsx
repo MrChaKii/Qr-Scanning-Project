@@ -263,14 +263,12 @@ export const AttendanceScanner = ({ onScanSuccess }) => {
       const input = inputRef.current
       if (input && document.activeElement === input) {
         e.preventDefault()
-        e.stopPropagation()
         return
       }
 
       const sinceLastInput = Date.now() - lastInputAtRef.current
       if (sinceLastInput >= 0 && sinceLastInput <= TERMINATOR_GUARD_MS) {
         e.preventDefault()
-        e.stopPropagation()
       }
     }
 
