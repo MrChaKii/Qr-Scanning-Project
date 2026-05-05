@@ -9,6 +9,8 @@ const toWorkDate = (date) => {
   return date.toISOString().slice(0, 10);
 };
 
+const SHIFT_TIMEZONE = process.env.SHIFT_TIMEZONE || 'Asia/Colombo';
+
 const parseTimeToMinutes = (value) => {
   if (typeof value !== 'string') return null;
   const [hh, mm] = value.split(':').map((v) => Number(v));
@@ -20,6 +22,24 @@ const isTimeInRange = (value, start, end) => {
   if (start === null || end === null) return false;
   if (start <= end) return value >= start && value < end;
   return value >= start || value < end;
+};
+
+const getMinutesInTimeZone = (date, timeZone) => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(date);
+
+    const hh = Number(parts.find((p) => p.type === 'hour')?.value);
+    const mm = Number(parts.find((p) => p.type === 'minute')?.value);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+    return hh * 60 + mm;
+  } catch (err) {
+    return null;
+  }
 };
 
 const getShiftForDate = (date, shiftTimes) => {
@@ -35,10 +55,12 @@ const getShiftForDate = (date, shiftTimes) => {
     return null;
   }
 
-  const minutes = date.getHours() * 60 + date.getMinutes();
+  const minutes = getMinutesInTimeZone(date, SHIFT_TIMEZONE);
+  if (minutes === null) return null;
 
   if (isTimeInRange(minutes, dayStart, dayEnd)) return 'DAY';
   if (isTimeInRange(minutes, nightStart, nightEnd)) return 'NIGHT';
+
   return null;
 };
 
@@ -283,6 +305,7 @@ export const getDailySummary = async (req, res) => {
       }
       summary[empId].logs.push(log);
     });
+
     // For each employee, get first IN and last OUT
     const result = Object.values(summary).map(({ employee, company, logs }) => {
       const firstIn = logs.find(l => l.scanType === 'IN');
