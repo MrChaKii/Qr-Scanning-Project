@@ -10,7 +10,7 @@ export const AttendanceScanPage = () => {
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 to-slate-100">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-slate-200">
+      <div className="bg-white shadow-sm border-b border-slate-200" data-focus-exempt="true">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Security Portal</h1>
