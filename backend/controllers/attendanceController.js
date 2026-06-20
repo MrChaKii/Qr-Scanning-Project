@@ -10,6 +10,7 @@ const toWorkDate = (date) => {
 };
 
 const SHIFT_TIMEZONE = process.env.SHIFT_TIMEZONE || 'Asia/Colombo';
+const SHIFT_DETECTION_WINDOW_MINUTES = 60;
 
 const parseTimeToMinutes = (value) => {
   if (typeof value !== 'string') return null;
@@ -22,6 +23,19 @@ const isTimeInRange = (value, start, end) => {
   if (start === null || end === null) return false;
   if (start <= end) return value >= start && value < end;
   return value >= start || value < end;
+};
+
+const isWithinShiftStartWindow = (
+  value,
+  start,
+  beforeMinutes = SHIFT_DETECTION_WINDOW_MINUTES,
+  afterMinutes = SHIFT_DETECTION_WINDOW_MINUTES
+) => {
+  if (value === null || start === null) return false;
+  const minutesPerDay = 24 * 60;
+  const windowStart = (start - beforeMinutes + minutesPerDay) % minutesPerDay;
+  const windowEnd = (start + afterMinutes) % minutesPerDay;
+  return isTimeInRange(value, windowStart, windowEnd);
 };
 
 const getMinutesInTimeZone = (date, timeZone) => {
@@ -37,6 +51,21 @@ const getMinutesInTimeZone = (date, timeZone) => {
     const mm = Number(parts.find((p) => p.type === 'minute')?.value);
     if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
     return hh * 60 + mm;
+  } catch (err) {
+    return null;
+  }
+};
+
+const getDayInTimeZone = (date, timeZone) => {
+  try {
+    const value = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      weekday: 'short',
+    }).format(date);
+
+    if (value === 'Sat') return 'SATURDAY';
+    if (value === 'Sun') return 'SUNDAY';
+    return null;
   } catch (err) {
     return null;
   }
@@ -75,24 +104,102 @@ const getShiftForDate = (date, shiftTimes, employeeType = 'permanent') => {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
   if (!shiftTimes) return null;
 
-  const prefix = employeeType === 'manpower' ? 'manpower' : 'permanent';
-
-  const dayStart = parseTimeToMinutes(shiftTimes[`${prefix}DayStart`]);
-  const dayEnd = parseTimeToMinutes(shiftTimes[`${prefix}DayEnd`]);
-  const nightStart = parseTimeToMinutes(shiftTimes[`${prefix}NightStart`]);
-  const nightEnd = parseTimeToMinutes(shiftTimes[`${prefix}NightEnd`]);
-
-  if ([dayStart, dayEnd, nightStart, nightEnd].some((v) => v === null)) {
-    return null;
-  }
-
   const minutes = getMinutesInTimeZone(date, SHIFT_TIMEZONE);
   if (minutes === null) return null;
 
-  if (isTimeInRange(minutes, dayStart, dayEnd)) return 'DAY';
-  if (isTimeInRange(minutes, nightStart, nightEnd)) return 'NIGHT';
+  if (employeeType !== 'manpower') {
+    const weekendShift = getDayInTimeZone(date, SHIFT_TIMEZONE);
+    if (weekendShift) {
+      const fieldName = `permanent${weekendShift[0]}${weekendShift.slice(1).toLowerCase()}`;
+      const weekendStart = parseTimeToMinutes(shiftTimes[`${fieldName}Start`]);
+      if (isWithinShiftStartWindow(minutes, weekendStart)) return weekendShift;
+      return 'ADOC';
+    }
+
+    const normalStart = parseTimeToMinutes(shiftTimes.permanentNormalStart || shiftTimes.permanentDayStart);
+    const specialStart = parseTimeToMinutes(shiftTimes.permanentSpecialStart || shiftTimes.permanentNightStart);
+
+    if ([normalStart, specialStart].some((v) => v === null)) {
+      return null;
+    }
+
+    if (isWithinShiftStartWindow(minutes, normalStart)) return 'NORMAL';
+    if (isWithinShiftStartWindow(minutes, specialStart, 15)) return 'SPECIAL';
+
+    return 'ADOC';
+  }
+
+  const weekendShift = getDayInTimeZone(date, SHIFT_TIMEZONE);
+  if (weekendShift) {
+    const fieldName = `manpower${weekendShift[0]}${weekendShift.slice(1).toLowerCase()}`;
+    const weekendStart = parseTimeToMinutes(shiftTimes[`${fieldName}Start`]);
+    if (isWithinShiftStartWindow(minutes, weekendStart)) return weekendShift;
+    return null;
+  }
+
+  const dayStart = parseTimeToMinutes(shiftTimes.manpowerDayStart);
+  const nightStart = parseTimeToMinutes(shiftTimes.manpowerNightStart);
+
+  if ([dayStart, nightStart].some((v) => v === null)) {
+    return null;
+  }
+
+  if (isWithinShiftStartWindow(minutes, dayStart)) return 'DAY';
+  if (isWithinShiftStartWindow(minutes, nightStart)) return 'NIGHT';
 
   return null;
+};
+
+const getShiftEndForEmployee = (shiftTimes, employeeType, shift) => {
+  if (!shiftTimes || !shift) return null;
+
+  if (employeeType === 'manpower') {
+    if (shift === 'DAY') return shiftTimes.manpowerDayEnd;
+    if (shift === 'NIGHT') return shiftTimes.manpowerNightEnd;
+    if (shift === 'SATURDAY') return shiftTimes.manpowerSaturdayEnd;
+    if (shift === 'SUNDAY') return shiftTimes.manpowerSundayEnd;
+    return null;
+  }
+
+  const permanentShiftEndFields = {
+    NORMAL: 'permanentNormalEnd',
+    SPECIAL: 'permanentSpecialEnd',
+    SATURDAY: 'permanentSaturdayEnd',
+    SUNDAY: 'permanentSundayEnd',
+    ADOC: null,
+  };
+
+  const field = permanentShiftEndFields[shift];
+  return field ? shiftTimes[field] : null;
+};
+
+const isOvernightShift = (shiftTimes, employeeType, shift) => {
+  if (!shiftTimes || !shift) return false;
+
+  const fields =
+    employeeType === 'manpower'
+      ? {
+          DAY: ['manpowerDayStart', 'manpowerDayEnd'],
+          NIGHT: ['manpowerNightStart', 'manpowerNightEnd'],
+          SATURDAY: ['manpowerSaturdayStart', 'manpowerSaturdayEnd'],
+          SUNDAY: ['manpowerSundayStart', 'manpowerSundayEnd'],
+        }
+      : {
+          NORMAL: ['permanentNormalStart', 'permanentNormalEnd'],
+          SPECIAL: ['permanentSpecialStart', 'permanentSpecialEnd'],
+          SATURDAY: ['permanentSaturdayStart', 'permanentSaturdayEnd'],
+          SUNDAY: ['permanentSundayStart', 'permanentSundayEnd'],
+          ADOC: [],
+        };
+
+  const [startField, endField] = fields[shift] || [];
+  if (!startField || !endField) return false;
+
+  const start = parseTimeToMinutes(shiftTimes[startField]);
+  const end = parseTimeToMinutes(shiftTimes[endField]);
+  if (start === null || end === null) return false;
+
+  return end <= start;
 };
 
 // GET /api/attendance/recent?limit=10
@@ -607,14 +714,9 @@ export const getOTSummary = async (req, res) => {
       // still shows the correct shift and places check-in + check-out together.
       const shift = firstIn?.shift || lastOut?.shift || 'UNKNOWN';
 
-      const empType = employee?.employeeType || 'permanent';
-      const prefix = empType === 'manpower' ? 'manpower' : 'permanent';
-
       // Shift end time is the boundary after which OT begins
-      // e.g. permanentDayEnd = "17:00", permanentNightEnd = "05:00"
-      const shiftEndStr = shift === 'DAY'
-        ? shiftTimes?.[`${prefix}DayEnd`]
-        : shiftTimes?.[`${prefix}NightEnd`];
+      const empType = employee?.employeeType || 'permanent';
+      const shiftEndStr = getShiftEndForEmployee(shiftTimes, empType, shift);
 
       let totalHours = 0;
       let otHours = 0;
@@ -638,10 +740,8 @@ export const getOTSummary = async (req, res) => {
             // Build shift-end as a proper UTC Date in the configured timezone
             let shiftEnd = buildTimeInTimeZone(outTime, endH, endM, SHIFT_TIMEZONE);
 
-            // For night shifts that end in the early morning of the next day
-            // (e.g. nightEnd = 05:00), the built shiftEnd might land before inTime.
-            // In that case push it forward one day.
-            if (shift === 'NIGHT' && shiftEnd <= inTime) {
+            // For overnight shifts, the built shift end might land before check-in.
+            if (isOvernightShift(shiftTimes, empType, shift) && shiftEnd <= inTime) {
               shiftEnd = new Date(shiftEnd.getTime() + 24 * 60 * 60 * 1000);
             }
 

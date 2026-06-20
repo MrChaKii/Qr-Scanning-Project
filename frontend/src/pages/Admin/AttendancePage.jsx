@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
 import { Input } from '../../components/ui/Input'
@@ -9,7 +9,7 @@ import { Modal } from '../../components/ui/Modal'
 import { ReportModal } from '../../components/features/ReportModal'
 import { useToast } from '../../hooks/useToast'
 import { getDailySummary, getNonCheckoutEmployees, updateAttendanceLogScanTime, createManualAttendanceLog } from '../../services/attendance.service'
-import { getShiftTimes, upsertShiftTimes } from '../../services/shiftTime.service'
+import { getShiftTimes } from '../../services/shiftTime.service'
 
 const toTimeValue = (scanTime) => {
   if (!scanTime) return ''
@@ -67,8 +67,10 @@ const formatReportDateTime = (value) => {
 export const AttendancePage = () => {
   const { showToast } = useToast()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0]
   const [date, setDate] = useState(
-    new Date().toISOString().split('T')[0]
+    initialDate
   )
   const [summary, setSummary] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -81,20 +83,8 @@ export const AttendancePage = () => {
   const [editCheckOut, setEditCheckOut] = useState('')
   const [shiftTimes, setShiftTimes] = useState(null)
   const [isShiftLoading, setIsShiftLoading] = useState(false)
-  const [isShiftOpen, setIsShiftOpen] = useState(false)
-  const [isShiftSaving, setIsShiftSaving] = useState(false)
   const [isReportOpen, setIsReportOpen] = useState(false)
   const [isReportGenerating, setIsReportGenerating] = useState(false)
-  const [shiftForm, setShiftForm] = useState({
-    manpowerDayStart: '',
-    manpowerDayEnd: '',
-    manpowerNightStart: '',
-    manpowerNightEnd: '',
-    permanentDayStart: '',
-    permanentDayEnd: '',
-    permanentNightStart: '',
-    permanentNightEnd: '',
-  })
 
   const fetchSummary = async () => {
     setIsLoading(true)
@@ -173,25 +163,6 @@ export const AttendancePage = () => {
     }
   }
 
-  const openShiftModal = () => {
-    setShiftForm({
-      manpowerDayStart: shiftTimes?.manpowerDayStart || '',
-      manpowerDayEnd: shiftTimes?.manpowerDayEnd || '',
-      manpowerNightStart: shiftTimes?.manpowerNightStart || '',
-      manpowerNightEnd: shiftTimes?.manpowerNightEnd || '',
-      permanentDayStart: shiftTimes?.permanentDayStart || '',
-      permanentDayEnd: shiftTimes?.permanentDayEnd || '',
-      permanentNightStart: shiftTimes?.permanentNightStart || '',
-      permanentNightEnd: shiftTimes?.permanentNightEnd || '',
-    })
-    setIsShiftOpen(true)
-  }
-
-  const closeShiftModal = () => {
-    if (isShiftSaving) return
-    setIsShiftOpen(false)
-  }
-
   const openReportModal = () => {
     setIsReportOpen(true)
   }
@@ -199,51 +170,6 @@ export const AttendancePage = () => {
   const closeReportModal = () => {
     if (isReportGenerating) return
     setIsReportOpen(false)
-  }
-
-  const handleShiftChange = (field) => (e) => {
-    const value = e.target.value
-    setShiftForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
-
-  const saveShiftTimes = async () => {
-    const base = {
-      manpowerDayStart: shiftTimes?.manpowerDayStart || '',
-      manpowerDayEnd: shiftTimes?.manpowerDayEnd || '',
-      manpowerNightStart: shiftTimes?.manpowerNightStart || '',
-      manpowerNightEnd: shiftTimes?.manpowerNightEnd || '',
-      permanentDayStart: shiftTimes?.permanentDayStart || '',
-      permanentDayEnd: shiftTimes?.permanentDayEnd || '',
-      permanentNightStart: shiftTimes?.permanentNightStart || '',
-      permanentNightEnd: shiftTimes?.permanentNightEnd || '',
-    }
-
-    const payload = Object.entries(shiftForm).reduce((acc, [key, value]) => {
-      if (value && value !== base[key]) acc[key] = value
-      return acc
-    }, {})
-
-    if (Object.keys(payload).length === 0) {
-      showToast('Nothing to update', 'warning')
-      return
-    }
-
-    setIsShiftSaving(true)
-    try {
-      const updated = await upsertShiftTimes(payload)
-      setShiftTimes(updated)
-      showToast('Shift times updated', 'success')
-      setIsShiftOpen(false)
-    } catch (error) {
-      console.error('Failed to update shift times', error)
-      const msg = error?.response?.data?.message || error?.message || 'Failed to update shift times'
-      showToast(msg, 'error')
-    } finally {
-      setIsShiftSaving(false)
-    }
   }
 
   const generateReport = async (startDate, endDate) => {
@@ -440,12 +366,16 @@ export const AttendancePage = () => {
           variant={
             item.shift === 'DAY'
               ? 'success'
+              : item.shift === 'NORMAL'
+              ? 'success'
+              : item.shift === 'SPECIAL'
+              ? 'danger'
               : item.shift === 'NIGHT'
               ? 'warning'
               : 'outline'
           }
         >
-          {item.shift || '—'}
+          {item.shift === 'NORMAL' ? 'DAY' : item.shift || '—'}
         </Badge>
       ),
     },
@@ -481,10 +411,14 @@ export const AttendancePage = () => {
     },
   ]
 
-  const permDay = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.permanentDayStart, shiftTimes?.permanentDayEnd)
-  const permNight = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.permanentNightStart, shiftTimes?.permanentNightEnd)
+  const permNormal = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.permanentNormalStart, shiftTimes?.permanentNormalEnd)
+  const permSpecial = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.permanentSpecialStart, shiftTimes?.permanentSpecialEnd)
+  const permSaturday = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.permanentSaturdayStart, shiftTimes?.permanentSaturdayEnd)
+  const permSunday = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.permanentSundayStart, shiftTimes?.permanentSundayEnd)
   const manDay = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.manpowerDayStart, shiftTimes?.manpowerDayEnd)
   const manNight = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.manpowerNightStart, shiftTimes?.manpowerNightEnd)
+  const manSaturday = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.manpowerSaturdayStart, shiftTimes?.manpowerSaturdayEnd)
+  const manSunday = isShiftLoading ? '...' : formatShiftWindow(shiftTimes?.manpowerSundayStart, shiftTimes?.manpowerSundayEnd)
 
   return (
     <DashboardLayout>
@@ -536,22 +470,26 @@ export const AttendancePage = () => {
 
             <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
               <div className="flex flex-col gap-2 text-sm text-slate-700">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="font-medium w-24">Permanent:</span>
-                  <Badge variant="outline">Day: {permDay}</Badge>
-                  <Badge variant="outline">Night: {permNight}</Badge>
+                  <Badge variant="outline">Day: {permNormal}</Badge>
+                  <Badge variant="outline">Special: {permSpecial}</Badge>
+                  <Badge variant="outline">Saturday: {permSaturday}</Badge>
+                  <Badge variant="outline">Sunday: {permSunday}</Badge>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="font-medium w-24">Manpower:</span>
                   <Badge variant="outline">Day: {manDay}</Badge>
                   <Badge variant="outline">Night: {manNight}</Badge>
+                  <Badge variant="outline">Saturday: {manSaturday}</Badge>
+                  <Badge variant="outline">Sunday: {manSunday}</Badge>
                 </div>
               </div>
 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={openShiftModal}
+                onClick={() => navigate(`/attendance/edit-shift-times?date=${date}`)}
                 disabled={isShiftLoading}
               >
                 {shiftTimes ? 'Edit Shift Times' : 'Set Shift Times'}
@@ -568,82 +506,6 @@ export const AttendancePage = () => {
           </div>
         </div>
       </div>
-
-      <Modal
-        isOpen={isShiftOpen}
-        onClose={closeShiftModal}
-        title="Shift Times"
-      >
-        <div className="space-y-6">
-          <div>
-            <h4 className="font-semibold text-slate-700 mb-3">Permanent Shifts</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Day Start"
-                type="time"
-                value={shiftForm.permanentDayStart}
-                onChange={handleShiftChange('permanentDayStart')}
-              />
-              <Input
-                label="Day End"
-                type="time"
-                value={shiftForm.permanentDayEnd}
-                onChange={handleShiftChange('permanentDayEnd')}
-              />
-              <Input
-                label="Night Start"
-                type="time"
-                value={shiftForm.permanentNightStart}
-                onChange={handleShiftChange('permanentNightStart')}
-              />
-              <Input
-                label="Night End"
-                type="time"
-                value={shiftForm.permanentNightEnd}
-                onChange={handleShiftChange('permanentNightEnd')}
-              />
-            </div>
-          </div>
-          <div>
-            <h4 className="font-semibold text-slate-700 mb-3">Manpower Shifts</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Day Start"
-                type="time"
-                value={shiftForm.manpowerDayStart}
-                onChange={handleShiftChange('manpowerDayStart')}
-              />
-              <Input
-                label="Day End"
-                type="time"
-                value={shiftForm.manpowerDayEnd}
-                onChange={handleShiftChange('manpowerDayEnd')}
-              />
-              <Input
-                label="Night Start"
-                type="time"
-                value={shiftForm.manpowerNightStart}
-                onChange={handleShiftChange('manpowerNightStart')}
-              />
-              <Input
-                label="Night End"
-                type="time"
-                value={shiftForm.manpowerNightEnd}
-                onChange={handleShiftChange('manpowerNightEnd')}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={closeShiftModal} disabled={isShiftSaving}>
-              Cancel
-            </Button>
-            <Button onClick={saveShiftTimes} isLoading={isShiftSaving}>
-              Save
-            </Button>
-          </div>
-        </div>
-      </Modal>
 
       <ReportModal
         isOpen={isReportOpen}

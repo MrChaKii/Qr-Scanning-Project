@@ -6,6 +6,35 @@ const normalizeTime = (value) => String(value || '').trim();
 
 const isValidTime = (value) => TIME_RE.test(value);
 
+const toMinutes = (value) => {
+  const [hh, mm] = value.split(':').map(Number);
+  return hh * 60 + mm;
+};
+
+const getDurationHours = (start, end) => {
+  const startMinutes = toMinutes(start);
+  const endMinutes = toMinutes(end);
+  const durationMinutes =
+    endMinutes > startMinutes
+      ? endMinutes - startMinutes
+      : endMinutes + 24 * 60 - startMinutes;
+
+  return durationMinutes / 60;
+};
+
+const validateMaxDuration = (data, startField, endField, maxHours, label) => {
+  const start = data?.[startField];
+  const end = data?.[endField];
+  if (!start || !end) return null;
+
+  const durationHours = getDurationHours(start, end);
+  if (durationHours > maxHours) {
+    return `${label} must be maximum ${maxHours} hours`;
+  }
+
+  return null;
+};
+
 export const getShiftTimes = async (req, res) => {
   try {
     const shiftTimes = await ShiftTime.findOne().sort({ updatedAt: -1 });
@@ -22,7 +51,13 @@ export const upsertShiftTimes = async (req, res) => {
   try {
     const fields = [
       'manpowerDayStart', 'manpowerDayEnd', 'manpowerNightStart', 'manpowerNightEnd',
+      'manpowerSaturdayStart', 'manpowerSaturdayEnd',
+      'manpowerSundayStart', 'manpowerSundayEnd',
       'permanentDayStart', 'permanentDayEnd', 'permanentNightStart', 'permanentNightEnd',
+      'permanentNormalStart', 'permanentNormalEnd',
+      'permanentSpecialStart', 'permanentSpecialEnd',
+      'permanentSaturdayStart', 'permanentSaturdayEnd',
+      'permanentSundayStart', 'permanentSundayEnd',
       'manpowerDayOtStart', 'manpowerDayOtEnd', 'manpowerNightOtStart', 'manpowerNightOtEnd',
       'permanentDayOtStart', 'permanentDayOtEnd', 'permanentNightOtStart', 'permanentNightOtEnd'
     ];
@@ -46,6 +81,16 @@ export const upsertShiftTimes = async (req, res) => {
     }
 
     let shiftTimes = await ShiftTime.findOne().sort({ updatedAt: -1 });
+    const current = shiftTimes?.toObject ? shiftTimes.toObject() : {};
+    const merged = { ...current, ...payload };
+    const durationError =
+      validateMaxDuration(merged, 'permanentNormalStart', 'permanentNormalEnd', 24, 'Permanent normal shift') ||
+      validateMaxDuration(merged, 'permanentSpecialStart', 'permanentSpecialEnd', 8, 'Permanent special shift');
+
+    if (durationError) {
+      return res.status(400).json({ message: durationError });
+    }
+
     if (shiftTimes) {
       shiftTimes.set(payload);
       if (req.userId) {
