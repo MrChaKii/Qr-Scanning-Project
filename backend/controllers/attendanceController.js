@@ -3,9 +3,176 @@ import QRCode from '../models/QRCode.js';
 import Employee from '../models/Employee.js';
 import Company from '../models/Company.js';
 
+const MAX_OPEN_SHIFT_HOURS = 36;
+const MAX_OPEN_SHIFT_MS = MAX_OPEN_SHIFT_HOURS * 60 * 60 * 1000;
+
 const toWorkDate = (date) => {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
   return date.toISOString().slice(0, 10);
+};
+
+const getIdValue = (value) => value?._id || value;
+
+const getEmployeeKey = (log) =>
+  log.employeeId?._id?.toString() || log.employeeId?.toString() || 'unknown';
+
+const isAfter = (later, earlier) => new Date(later).getTime() > new Date(earlier).getTime();
+
+const isWithinOpenShiftWindow = (inTime, outTime) => {
+  const start = new Date(inTime);
+  const end = new Date(outTime);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return false;
+  }
+
+  return end.getTime() - start.getTime() <= MAX_OPEN_SHIFT_MS;
+};
+
+const findOpenCheckInForCheckout = async ({ employeeId, companyId, scanLocation, outTime, excludeOutId = null }) => {
+  const parsedOutTime = new Date(outTime);
+  if (Number.isNaN(parsedOutTime.getTime())) return null;
+
+  const earliestAllowedIn = new Date(parsedOutTime.getTime() - MAX_OPEN_SHIFT_MS);
+
+  const lastInLog = await AttendanceLog.findOne({
+    employeeId,
+    companyId,
+    scanLocation,
+    scanType: 'IN',
+    scanTime: {
+      $gte: earliestAllowedIn,
+      $lt: parsedOutTime,
+    },
+  }).sort({ scanTime: -1 });
+
+  if (!lastInLog) return null;
+
+  const alreadyCheckedOutQuery = {
+    employeeId,
+    companyId,
+    scanLocation,
+    scanType: 'OUT',
+    scanTime: {
+      $gt: lastInLog.scanTime,
+      $lt: parsedOutTime,
+    },
+  };
+
+  if (excludeOutId) {
+    alreadyCheckedOutQuery._id = { $ne: excludeOutId };
+  }
+
+  const alreadyCheckedOut = await AttendanceLog.exists(alreadyCheckedOutQuery);
+
+  return alreadyCheckedOut ? null : lastInLog;
+};
+
+const findCheckoutForOpenCheckIn = async (firstIn) => {
+  if (!firstIn?.scanTime) return null;
+
+  const inTime = new Date(firstIn.scanTime);
+  if (Number.isNaN(inTime.getTime())) return null;
+
+  const maxOutTime = new Date(inTime.getTime() + MAX_OPEN_SHIFT_MS);
+  const employeeId = getIdValue(firstIn.employeeId);
+  const companyId = getIdValue(firstIn.companyId);
+
+  if (!employeeId || !companyId) return null;
+
+  return AttendanceLog.findOne({
+    employeeId,
+    companyId,
+    scanLocation: 'SECURITY',
+    scanType: 'OUT',
+    scanTime: {
+      $gt: inTime,
+      $lte: maxOutTime,
+    },
+  })
+    .sort({ scanTime: 1 })
+    .populate('employeeId companyId');
+};
+
+const isCheckoutForPreviousOpenShift = async (outLog) => {
+  if (!outLog?.scanTime) return false;
+
+  const employeeId = getIdValue(outLog.employeeId);
+  const companyId = getIdValue(outLog.companyId);
+  if (!employeeId || !companyId) return false;
+
+  const openIn = await findOpenCheckInForCheckout({
+    employeeId,
+    companyId,
+    scanLocation: 'SECURITY',
+    outTime: outLog.scanTime,
+  });
+
+  return Boolean(openIn && openIn.workDate !== outLog.workDate);
+};
+
+const buildAttendanceSummaryRows = async (date) => {
+  const logs = await AttendanceLog.find({
+    workDate: date,
+    scanLocation: 'SECURITY',
+  })
+    .sort({ scanTime: 1 })
+    .populate('employeeId companyId');
+
+  const summary = {};
+  logs.forEach((log) => {
+    const empId = getEmployeeKey(log);
+    if (!summary[empId]) {
+      summary[empId] = {
+        employee: log.employeeId,
+        company: log.companyId,
+        logs: [],
+      };
+    }
+    summary[empId].logs.push(log);
+  });
+
+  const rows = await Promise.all(
+    Object.values(summary).map(async ({ employee, company, logs: employeeLogs }) => {
+      employeeLogs.sort((a, b) => new Date(a.scanTime) - new Date(b.scanTime));
+
+      const firstIn = employeeLogs.find((log) => log.scanType === 'IN');
+      let lastOut = null;
+
+      if (firstIn) {
+        lastOut = [...employeeLogs]
+          .reverse()
+          .find(
+            (log) =>
+              log.scanType === 'OUT' &&
+              isAfter(log.scanTime, firstIn.scanTime) &&
+              isWithinOpenShiftWindow(firstIn.scanTime, log.scanTime)
+          );
+
+        if (!lastOut) {
+          lastOut = await findCheckoutForOpenCheckIn(firstIn);
+        }
+      } else {
+        lastOut = [...employeeLogs].reverse().find((log) => log.scanType === 'OUT');
+
+        // If this row only has a checkout because an overnight OUT was saved
+        // under the checkout calendar date, do not show it as an "Absent" row
+        // on that next day. It belongs to the original check-in workDate.
+        if (lastOut && (await isCheckoutForPreviousOpenShift(lastOut))) {
+          return null;
+        }
+      }
+
+      return {
+        employee,
+        company,
+        firstIn,
+        lastOut,
+      };
+    })
+  );
+
+  return rows.filter(Boolean);
 };
 
 // GET /api/attendance/recent?limit=10
@@ -91,10 +258,12 @@ export const scanAtSecurity = async (req, res) => {
     // Accept scanType from request, default to alternating if not provided
     let type = scanType;
     if (!type) {
-      // Find the last scan for this QR code, regardless of date, to determine the NEXT scan type
+      // Find the last scan for this employee, regardless of date, to determine the NEXT scan type.
+      // Include employeeId here because manpower/company QR codes can be shared by many employees.
       const lastLog = await AttendanceLog.findOne({
         qrId: qr._id,
         companyId,
+        employeeId,
         scanLocation: context
       }).sort({ scanTime: -1 });
       
@@ -105,21 +274,19 @@ export const scanAtSecurity = async (req, res) => {
       }
     }
 
-    // Fix: If checking OUT, inherit the workDate and shift from the most recent IN scan
+    // If checking OUT, inherit the workDate from the latest open IN scan.
+    // Overnight shifts must stay under the original check-in workDate, even if checkout
+    // happens on the next calendar day.
     if (type === 'OUT') {
-      const lastInLog = await AttendanceLog.findOne({
-        qrId: qr._id,
+      const openInLog = await findOpenCheckInForCheckout({
+        employeeId,
         companyId,
         scanLocation: context,
-        scanType: 'IN'
-      }).sort({ scanTime: -1 });
+        outTime: now,
+      });
 
-      if (lastInLog) {
-        // Ensure the last IN scan was within the last 24 hours so we don't pull an old scan
-        const hoursSinceLastIn = (now - new Date(lastInLog.scanTime)) / (1000 * 60 * 60);
-        if (hoursSinceLastIn < 24) {
-          workDate = lastInLog.workDate; // Inherit the workDate!
-        }
+      if (openInLog) {
+        workDate = openInLog.workDate;
       }
     }
 
@@ -152,7 +319,7 @@ export const scanAtSecurity = async (req, res) => {
 export const updateAttendanceLogScanTime = async (req, res) => {
   try {
     const { id } = req.params;
-    const { scanTime } = req.body;
+    const { scanTime, workDate } = req.body;
 
     if (!id || !/^[a-fA-F0-9]{24}$/.test(id)) {
       return res.status(400).json({ message: 'Invalid attendance log id' });
@@ -177,16 +344,42 @@ export const updateAttendanceLogScanTime = async (req, res) => {
       return res.status(400).json({ message: 'Only SECURITY attendance logs can be edited here' });
     }
 
-    const newWorkDate = toWorkDate(parsed);
-    if (!newWorkDate) {
+    const scanWorkDate = toWorkDate(parsed);
+    if (!scanWorkDate) {
       return res.status(400).json({ message: 'Failed to compute workDate from scanTime' });
     }
-    if (newWorkDate !== log.workDate) {
-      return res.status(400).json({ message: 'Changing the attendance date is not allowed' });
+
+    const requestedWorkDate = typeof workDate === 'string' && workDate.trim() ? workDate.trim() : null;
+    if (requestedWorkDate && !/^\d{4}-\d{2}-\d{2}$/.test(requestedWorkDate)) {
+      return res.status(400).json({ message: 'workDate must be in YYYY-MM-DD format' });
+    }
+
+    let nextWorkDate = log.scanType === 'IN' ? scanWorkDate : requestedWorkDate || log.workDate;
+
+    if (log.scanType === 'IN' && requestedWorkDate && requestedWorkDate !== scanWorkDate) {
+      return res.status(400).json({ message: 'Check-in workDate must match the selected check-in date' });
+    }
+
+    const checkoutWorkDateChanged = log.scanType === 'OUT' && requestedWorkDate && requestedWorkDate !== log.workDate;
+    if (log.scanType === 'OUT' && (checkoutWorkDateChanged || nextWorkDate !== scanWorkDate)) {
+      const openInLog = await findOpenCheckInForCheckout({
+        employeeId: log.employeeId,
+        companyId: log.companyId,
+        scanLocation: log.scanLocation,
+        outTime: parsed,
+        excludeOutId: log._id,
+      });
+
+      if (!openInLog || openInLog.workDate !== log.workDate) {
+        return res.status(400).json({
+          message:
+            'Checkout can only be moved to another calendar date when it still belongs to the same open shift.',
+        });
+      }
     }
 
     log.scanTime = parsed;
-    log.workDate = newWorkDate;
+    log.workDate = nextWorkDate;
     log.editedAt = new Date();
     if (req.userId) {
       log.editedBy = req.userId;
@@ -291,7 +484,22 @@ export const getAttendanceSummary = async (req, res) => {
     }).sort({ scanTime: 1 });
 
     const firstIn = logs.find(l => l.scanType === 'IN');
-    const lastOut = [...logs].reverse().find(l => l.scanType === 'OUT');
+    let lastOut = null;
+
+    if (firstIn) {
+      lastOut = [...logs]
+        .reverse()
+        .find(
+          (log) =>
+            log.scanType === 'OUT' &&
+            isAfter(log.scanTime, firstIn.scanTime) &&
+            isWithinOpenShiftWindow(firstIn.scanTime, log.scanTime)
+        );
+
+      if (!lastOut) {
+        lastOut = await findCheckoutForOpenCheckIn(firstIn);
+      }
+    }
 
     res.status(200).json({
       firstIn,
@@ -309,33 +517,7 @@ export const getDailySummary = async (req, res) => {
     if (!date) {
       return res.status(400).json({ message: 'date is required' });
     }
-    // Find all attendance logs for the date
-    const logs = await AttendanceLog.find({ workDate: date, scanLocation: 'SECURITY' }).populate('employeeId companyId');
-    // Group by employee
-    const summary = {};
-    logs.forEach(log => {
-      const empId = log.employeeId?._id?.toString() || (log.employeeId && log.employeeId.toString()) || 'unknown';
-      if (!summary[empId]) {
-        summary[empId] = {
-          employee: log.employeeId,
-          company: log.companyId,
-          logs: []
-        };
-      }
-      summary[empId].logs.push(log);
-    });
-
-    // For each employee, get first IN and last OUT
-    const result = Object.values(summary).map(({ employee, company, logs }) => {
-      const firstIn = logs.find(l => l.scanType === 'IN');
-      const lastOut = [...logs].reverse().find(l => l.scanType === 'OUT');
-      return {
-        employee,
-        company,
-        firstIn,
-        lastOut
-      };
-    });
+    const result = await buildAttendanceSummaryRows(date);
     res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching daily summary', error: err.message });
@@ -350,6 +532,27 @@ export const getNonCheckoutEmployees = async (req, res) => {
     if (!day) {
       return res.status(400).json({ message: 'date is required in format YYYY-MM-DD' });
     }
+
+    const summaryRows = await buildAttendanceSummaryRows(day);
+    const openRows = summaryRows.filter(({ firstIn, lastOut }) => firstIn && !lastOut);
+
+    if (openRows.length === 0) {
+      return res.status(200).json({ date: day, count: 0, rows: [] });
+    }
+
+    const openShiftRows = openRows.map(({ employee, company, firstIn }) => ({
+      employeeId: employee?._id?.toString() || firstIn?.employeeId?.toString() || null,
+      employeeName: employee?.name || '—',
+      employeeCode: employee?.employeeId || '—',
+      companyName: company?.companyName || '—',
+      lastCheckIn: firstIn?.scanTime || null,
+    }));
+
+    return res.status(200).json({
+      date: day,
+      count: openShiftRows.length,
+      rows: openShiftRows,
+    });
 
     const lastAttendanceRows = await AttendanceLog.aggregate([
       {
@@ -433,8 +636,8 @@ export const getOTSummary = async (req, res) => {
       return res.status(400).json({ message: 'date is required' });
     }
     
-    // Find all attendance logs for the date
-    const logs = await AttendanceLog.find({ workDate: date, scanLocation: 'SECURITY' }).populate('employeeId companyId');
+    // Legacy grouping kept harmless; OT rows below come from buildAttendanceSummaryRows.
+    const logs = [];
     
     // Group by employee only so check-in and check-out always appear on the same row.
     const summary = {};
@@ -453,12 +656,9 @@ export const getOTSummary = async (req, res) => {
       summary[key].logs.push(log);
     });
 
-    const result = Object.values(summary).map(({ employee, company, logs }) => {
+    const result = (await buildAttendanceSummaryRows(date)).map(({ employee, company, firstIn, lastOut }) => {
       // Sort ascending so firstIn/lastOut are reliable
-      logs.sort((a, b) => new Date(a.scanTime) - new Date(b.scanTime));
-
-      const firstIn = logs.find(l => l.scanType === 'IN');
-      const lastOut = [...logs].reverse().find(l => l.scanType === 'OUT');
+      // Summary rows are already sorted and paired by the overnight-aware helper.
 
       let totalHours = 0;
       let otHours = 0;
