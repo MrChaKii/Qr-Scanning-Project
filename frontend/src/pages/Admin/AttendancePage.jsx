@@ -58,6 +58,22 @@ const formatReportDateTime = (value) => {
   return dateValue.toLocaleString()
 }
 
+const AttendanceDateTimeCell = ({ value }) => {
+  if (!value) return '-'
+
+  const dateValue = new Date(value)
+  if (Number.isNaN(dateValue.getTime())) return '-'
+
+  return (
+    <div className="leading-tight">
+      <div className="text-slate-900">{dateValue.toLocaleTimeString()}</div>
+      <div className="mt-1 text-xs text-slate-500">
+        {dateValue.toLocaleDateString('en-GB')}
+      </div>
+    </div>
+  )
+}
+
 export const AttendancePage = () => {
   const { showToast } = useToast()
   const navigate = useNavigate()
@@ -73,7 +89,9 @@ export const AttendancePage = () => {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const [editCheckInDate, setEditCheckInDate] = useState('')
   const [editCheckIn, setEditCheckIn] = useState('')
+  const [editCheckOutDate, setEditCheckOutDate] = useState('')
   const [editCheckOut, setEditCheckOut] = useState('')
   const [isReportOpen, setIsReportOpen] = useState(false)
   const [isReportGenerating, setIsReportGenerating] = useState(false)
@@ -226,8 +244,11 @@ export const AttendancePage = () => {
   }, [date])
 
   const openEdit = (row) => {
+    const fallbackDate = row?.workDate || date
     setEditRow(row)
+    setEditCheckInDate(row?.checkIn ? toLocalDateString(new Date(row.checkIn)) : fallbackDate)
     setEditCheckIn(toTimeValue(row?.checkIn))
+    setEditCheckOutDate(row?.checkOut ? toLocalDateString(new Date(row.checkOut)) : fallbackDate)
     setEditCheckOut(toTimeValue(row?.checkOut))
     setIsEditOpen(true)
   }
@@ -236,7 +257,9 @@ export const AttendancePage = () => {
     if (isSaving) return
     setIsEditOpen(false)
     setEditRow(null)
+    setEditCheckInDate('')
     setEditCheckIn('')
+    setEditCheckOutDate('')
     setEditCheckOut('')
   }
 
@@ -244,58 +267,91 @@ export const AttendancePage = () => {
     if (!editRow) return
     setIsSaving(true)
     try {
-      const updates = []
       const baseDate = editRow.workDate || date
+      let updatesCount = 0
+
+      if (editRow.checkInLogId && (!editCheckInDate || !editCheckIn)) {
+        showToast('Please select both check-in date and time', 'warning')
+        return
+      }
+
+      if (!editRow.checkInLogId && editCheckIn && !editCheckInDate) {
+        showToast('Please select check-in date', 'warning')
+        return
+      }
+
+      if (editRow.checkOutLogId && (!editCheckOutDate || !editCheckOut)) {
+        showToast('Please select both check-out date and time', 'warning')
+        return
+      }
+
+      if (!editRow.checkOutLogId && editCheckOut && !editCheckOutDate) {
+        showToast('Please select check-out date', 'warning')
+        return
+      }
 
       if (editRow.checkInLogId) {
-        const original = toTimeValue(editRow.checkIn)
-        const iso = editCheckIn && editCheckIn !== original ? toIsoFromDateAndTime(baseDate, editCheckIn) : null
-        if (iso) {
-          updates.push(updateAttendanceLogScanTime(editRow.checkInLogId, iso))
+        const originalTime = toTimeValue(editRow.checkIn)
+        const originalDate = editRow.checkIn ? toLocalDateString(new Date(editRow.checkIn)) : baseDate
+        const hasChanged = editCheckIn !== originalTime || editCheckInDate !== originalDate
+
+        if (hasChanged) {
+          const iso = toIsoFromDateAndTime(editCheckInDate, editCheckIn)
+          if (iso) {
+            await updateAttendanceLogScanTime(editRow.checkInLogId, iso, editCheckInDate)
+            updatesCount += 1
+          }
         }
       } else if (editCheckIn) {
-        const iso = toIsoFromDateAndTime(baseDate, editCheckIn)
+        const iso = toIsoFromDateAndTime(editCheckInDate, editCheckIn)
         if (iso) {
-          updates.push(
-            createManualAttendanceLog({
-              employeeId: editRow.employeeObjectId,
-              companyId: editRow.companyObjectId,
-              scanType: 'IN',
-              scanTime: iso,
-              workDate: baseDate,
-            })
-          )
+          await createManualAttendanceLog({
+            employeeId: editRow.employeeObjectId,
+            companyId: editRow.companyObjectId,
+            scanType: 'IN',
+            scanTime: iso,
+            workDate: editCheckInDate,
+          })
+          updatesCount += 1
         }
       }
 
+      const targetCheckoutWorkDate = editCheckInDate || baseDate
       if (editRow.checkOutLogId) {
-        const original = toTimeValue(editRow.checkOut)
-        const iso = editCheckOut && editCheckOut !== original ? toIsoFromDateAndTime(baseDate, editCheckOut) : null
-        if (iso) {
-          updates.push(updateAttendanceLogScanTime(editRow.checkOutLogId, iso))
+        const originalTime = toTimeValue(editRow.checkOut)
+        const originalDate = editRow.checkOut ? toLocalDateString(new Date(editRow.checkOut)) : baseDate
+        const hasChanged =
+          editCheckOut !== originalTime ||
+          editCheckOutDate !== originalDate ||
+          targetCheckoutWorkDate !== baseDate
+
+        if (hasChanged) {
+          const iso = toIsoFromDateAndTime(editCheckOutDate, editCheckOut)
+          if (iso) {
+            await updateAttendanceLogScanTime(editRow.checkOutLogId, iso, targetCheckoutWorkDate)
+            updatesCount += 1
+          }
         }
       } else if (editCheckOut) {
-        const iso = toIsoFromDateAndTime(baseDate, editCheckOut)
+        const iso = toIsoFromDateAndTime(editCheckOutDate, editCheckOut)
         if (iso) {
-          updates.push(
-            createManualAttendanceLog({
-              employeeId: editRow.employeeObjectId,
-              companyId: editRow.companyObjectId,
-              scanType: 'OUT',
-              scanTime: iso,
-              workDate: baseDate,
-            })
-          )
+          await createManualAttendanceLog({
+            employeeId: editRow.employeeObjectId,
+            companyId: editRow.companyObjectId,
+            scanType: 'OUT',
+            scanTime: iso,
+            workDate: targetCheckoutWorkDate,
+          })
+          updatesCount += 1
         }
       }
 
-      if (updates.length === 0) {
+      if (updatesCount === 0) {
         showToast('Nothing to update', 'warning')
         return
       }
 
-      await Promise.all(updates)
-      showToast('Attendance times updated', 'success')
+      showToast('Attendance date and time updated', 'success')
       closeEdit()
       await fetchSummary()
     } catch (error) {
@@ -318,17 +374,11 @@ export const AttendancePage = () => {
     },
     {
       header: 'Check In',
-      accessor: (item) =>
-        item.checkIn
-          ? new Date(item.checkIn).toLocaleTimeString()
-          : '-',
+      accessor: (item) => <AttendanceDateTimeCell value={item.checkIn} />,
     },
     {
       header: 'Check Out',
-      accessor: (item) =>
-        item.checkOut
-          ? new Date(item.checkOut).toLocaleTimeString()
-          : '-',
+      accessor: (item) => <AttendanceDateTimeCell value={item.checkOut} />,
     },
     {
       header: 'Status',
@@ -432,23 +482,41 @@ export const AttendancePage = () => {
       <Modal
         isOpen={isEditOpen}
         onClose={closeEdit}
-        title={editRow ? `Edit Times - ${editRow.name}` : 'Edit Times'}
+        title={editRow ? `Edit Attendance - ${editRow.name}` : 'Edit Attendance'}
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Check In Time"
-              type="time"
-              value={editCheckIn}
-              onChange={(e) => setEditCheckIn(e.target.value)}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-700">Check In</p>
+              <Input
+                label="Date"
+                type="date"
+                value={editCheckInDate}
+                onChange={(e) => setEditCheckInDate(e.target.value)}
+              />
+              <Input
+                label="Time"
+                type="time"
+                value={editCheckIn}
+                onChange={(e) => setEditCheckIn(e.target.value)}
+              />
+            </div>
 
-            <Input
-              label="Check Out Time"
-              type="time"
-              value={editCheckOut}
-              onChange={(e) => setEditCheckOut(e.target.value)}
-            />
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-700">Check Out</p>
+              <Input
+                label="Date"
+                type="date"
+                value={editCheckOutDate}
+                onChange={(e) => setEditCheckOutDate(e.target.value)}
+              />
+              <Input
+                label="Time"
+                type="time"
+                value={editCheckOut}
+                onChange={(e) => setEditCheckOut(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-3">
