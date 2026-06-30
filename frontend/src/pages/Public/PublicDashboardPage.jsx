@@ -5,6 +5,7 @@ import { Table } from '../../components/ui/Table'
 import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
 import {
+  getPublicDailyCheckInCount,
   getPublicDashboardSummary,
   getPublicEmployeeDailyIdleTime,
 } from '../../services/public.service'
@@ -32,11 +33,20 @@ const formatHours = (value) => {
   return n.toFixed(2)
 }
 
-const formatTime = (value) => {
+const AttendanceDateTimeCell = ({ value }) => {
   if (!value) return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+  const dateValue = new Date(value)
+  if (Number.isNaN(dateValue.getTime())) return '—'
+
+  return (
+    <div className="leading-tight">
+      <div className="text-slate-900">{dateValue.toLocaleTimeString()}</div>
+      <div className="mt-1 text-xs text-slate-500">
+        {dateValue.toLocaleDateString('en-GB')}
+      </div>
+    </div>
+  )
 }
 
 const MonthlyBarChart = ({ rows }) => {
@@ -134,6 +144,7 @@ export const PublicDashboardPage = () => {
   const [summary, setSummary] = useState(null)
   const [date, setDate] = useState(todayYyyyMmDd())
   const [month, setMonth] = useState(currentYyyyMm())
+  const [checkInCount, setCheckInCount] = useState(0)
 
   const [dailyRows, setDailyRows] = useState([])
   const [dailyAvgRows, setDailyAvgRows] = useState([])
@@ -143,16 +154,23 @@ export const PublicDashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const idleCounts = useMemo(() => {
+    const manpower = idleRows.filter((row) => row.employeeType === 'manpower').length
+    const permanent = idleRows.filter((row) => row.employeeType === 'permanent').length
+    return { manpower, permanent, total: idleRows.length }
+  }, [idleRows])
+
   const load = async (isMounted) => {
     setIsLoading(true)
     setError('')
     try {
-      const [summaryData, daily, dailyAvg, idle, monthly] = await Promise.all([
+      const [summaryData, daily, dailyAvg, idle, monthly, checkInData] = await Promise.all([
         getPublicDashboardSummary(),
         getManpowerDailyHoursByCompany(date),
         getManpowerDailyAverageHoursByCompany(date),
         getPublicEmployeeDailyIdleTime(date),
         getManpowerMonthlyHoursByCompany(month),
+        getPublicDailyCheckInCount(date),
       ])
 
       if (!isMounted) return
@@ -162,6 +180,7 @@ export const PublicDashboardPage = () => {
       setDailyAvgRows(Array.isArray(dailyAvg) ? dailyAvg : [])
       setIdleRows(Array.isArray(idle) ? idle : [])
       setMonthlyRows(Array.isArray(monthly) ? monthly : [])
+      setCheckInCount(Number(checkInData?.count) || 0)
     } catch (e) {
       if (!isMounted) return
       setSummary(null)
@@ -169,6 +188,7 @@ export const PublicDashboardPage = () => {
       setDailyAvgRows([])
       setIdleRows([])
       setMonthlyRows([])
+      setCheckInCount(0)
       setError(e?.response?.data?.message || e?.message || 'Failed to load dashboard')
     } finally {
       if (isMounted) setIsLoading(false)
@@ -232,17 +252,25 @@ export const PublicDashboardPage = () => {
       accessor: (row) => row.employeeName || '—',
     },
     {
+      header: 'Employee Code',
+      accessor: (row) => row.employeeCode || '—',
+    },
+    {
+      header: 'Type',
+      accessor: (row) => row.employeeType || '—',
+    },
+    {
       header: 'Company',
       accessor: (row) => row.companyName || '—',
     },
     {
       header: 'Check In',
-      accessor: (row) => formatTime(row.checkInTime),
+      accessor: (row) => <AttendanceDateTimeCell value={row.checkInTime} />,
       className: 'text-right',
     },
     {
       header: 'Check Out',
-      accessor: (row) => (row.isCheckedOut ? formatTime(row.checkOutTime) : '—'),
+      accessor: (row) => (row.isCheckedOut ? <AttendanceDateTimeCell value={row.checkOutTime} /> : '—'),
       className: 'text-right',
     },
     {
@@ -330,6 +358,12 @@ export const PublicDashboardPage = () => {
                 </div>
               </div>
             </Card>
+
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <StatCard title={`Check-in Persons — ${date}`} value={checkInCount} tone="indigo" />
+              <StatCard title={`Idle Manpower — ${date}`} value={idleCounts.manpower} tone="amber" />
+              <StatCard title={`Idle Permanent — ${date}`} value={idleCounts.permanent} tone="emerald" />
+            </div>
 
             <div className="mt-6 flex flex-col gap-6">
               <Card title={`Daily manpower work hours (Company-wise) — ${date}`}>
