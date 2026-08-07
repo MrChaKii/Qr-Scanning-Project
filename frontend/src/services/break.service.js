@@ -19,3 +19,8 @@ export const deleteBreakSession = async (id) => {
   const response = await api.delete(`/api/break-session/${id}`)
   return response.data
 }
+
+export const migrateBreakSessions = async () => {
+  const response = await api.post('/api/break-session/migrate-to-time-range')
+  return response.data
+}

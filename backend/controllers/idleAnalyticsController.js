@@ -33,15 +33,21 @@ const safeDate = (value) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const computeTotalBreakMinutesForRange = async ({ workDate, start, end, now }) => {
-  const startIso = start.toISOString();
-  const endIso = end.toISOString();
+const HH_MM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-  // BreakSession.startTime/endTime are stored as ISO strings.
-  // ISO strings preserve chronological order in lexicographic comparisons.
-  const breaks = await BreakSession.find({
-    startTime: { $gte: startIso, $lte: endIso }
-  })
+/**
+ * Compute total break minutes for a given calendar date.
+ *
+ * Break sessions are date-independent: they store "HH:MM" start/end times
+ * that apply to every working day.  For each break we compute how many
+ * minutes of the queried day fall inside [breakStart, breakEnd].
+ *
+ * Legacy records (ISO datetime strings or durationMinutes-only) are handled
+ * with backward-compatible fallback logic.
+ */
+const computeTotalBreakMinutesForRange = async ({ workDate, start, end, now }) => {
+  // Fetch ALL break sessions — they apply to every day, no date filter needed
+  const breaks = await BreakSession.find()
     .select('startTime endTime durationMinutes')
     .lean();
 
@@ -52,7 +58,30 @@ const computeTotalBreakMinutesForRange = async ({ workDate, start, end, now }) =
     : [];
 
   let total = 0;
+
   for (const brk of breaks) {
+    // ── New format: HH:MM wall-clock times ──────────────────────────────────
+    if (HH_MM_RE.test(brk.startTime) && HH_MM_RE.test(brk.endTime)) {
+      // Map break times onto the queried calendar date
+      const [sh, sm] = brk.startTime.split(':').map(Number);
+      const [eh, em] = brk.endTime.split(':').map(Number);
+
+      const brkStart = new Date(start);
+      brkStart.setHours(sh, sm, 0, 0);
+
+      const brkEnd = new Date(start);
+      brkEnd.setHours(eh, em, 0, 0);
+
+      // Clamp to the queried day window [start, end]
+      const overlapStart = brkStart < start ? start : brkStart;
+      const overlapEnd   = brkEnd > end ? end : brkEnd;
+
+      const minutes = (overlapEnd.getTime() - overlapStart.getTime()) / 60000;
+      if (minutes > 0) total += minutes;
+      continue;
+    }
+
+    // ── Legacy format: stored durationMinutes only ───────────────────────────
     const storedDuration = brk?.durationMinutes;
     if (storedDuration !== undefined && storedDuration !== null) {
       const n = Number(storedDuration);
@@ -60,6 +89,7 @@ const computeTotalBreakMinutesForRange = async ({ workDate, start, end, now }) =
       continue;
     }
 
+    // ── Legacy format: ISO datetime startTime/endTime ────────────────────────
     const brkStart = safeDate(brk.startTime);
     if (!brkStart) continue;
     const brkEnd = safeDate(brk.endTime) || now;
