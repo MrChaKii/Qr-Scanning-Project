@@ -16,7 +16,7 @@ const HH_MM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const BreakSessionSchema = new mongoose.Schema({
   breakType: {
     type: String,
-    enum: ['BREAKFAST', 'LUNCH', 'TEA', 'CLOTHES', 'MORNING MEETING'],
+    enum: ['BREAKFAST', 'MID NIGHT', 'DINNER', 'LUNCH', 'TEA', 'MORNING MEETING'],
     required: true
   },
   // Wall-clock start time in "HH:MM" 24-hour format, e.g. "08:00"

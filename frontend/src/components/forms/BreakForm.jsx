@@ -2,9 +2,10 @@ import React, { useState } from "react";
 
 const BREAK_TYPES = [
   { value: "BREAKFAST",       label: "Breakfast" },
+  { value: "MID NIGHT",       label: "Mid Night" },
+  { value: "DINNER",          label: "Dinner" },
   { value: "LUNCH",           label: "Lunch" },
   { value: "TEA",             label: "Tea" },
-  { value: "CLOTHES",         label: "Clothes" },
   { value: "MORNING MEETING", label: "Morning Meeting" },
 ];
 
