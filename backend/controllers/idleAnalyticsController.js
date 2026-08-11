@@ -33,15 +33,77 @@ const safeDate = (value) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const computeTotalBreakMinutesForRange = async ({ workDate, start, end, now }) => {
-  const startIso = start.toISOString();
-  const endIso = end.toISOString();
+const HH_MM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-  // BreakSession.startTime/endTime are stored as ISO strings.
-  // ISO strings preserve chronological order in lexicographic comparisons.
-  const breaks = await BreakSession.find({
-    startTime: { $gte: startIso, $lte: endIso }
-  })
+/**
+ * Compute total break minutes for a given calendar date.
+ *
+ * Break sessions are date-independent: they store "HH:MM" start/end times
+ * that apply to every working day.  For each break we compute how many
+ * minutes of the queried day fall inside [breakStart, breakEnd].
+ *
+ * Legacy records (ISO datetime strings or durationMinutes-only) are handled
+ * with backward-compatible fallback logic.
+ */
+const computeBreakMinutesForWindow = ({ breaks, windowStart, windowEnd, now }) => {
+  if (!windowStart || !windowEnd) return 0;
+
+  const start = new Date(windowStart);
+  const end = new Date(windowEnd);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end.getTime() <= start.getTime()) {
+    return 0;
+  }
+
+  let total = 0;
+  const currentDay = new Date(start);
+  currentDay.setHours(0, 0, 0, 0);
+
+  const lastDay = new Date(end);
+  lastDay.setHours(0, 0, 0, 0);
+
+  for (let day = new Date(currentDay); day.getTime() <= lastDay.getTime(); day.setDate(day.getDate() + 1)) {
+    for (const brk of breaks) {
+      if (HH_MM_RE.test(brk.startTime) && HH_MM_RE.test(brk.endTime)) {
+        const [sh, sm] = brk.startTime.split(':').map(Number);
+        const [eh, em] = brk.endTime.split(':').map(Number);
+
+        const brkStart = new Date(day);
+        brkStart.setHours(sh, sm, 0, 0);
+
+        const brkEnd = new Date(day);
+        brkEnd.setHours(eh, em, 0, 0);
+        if (brkEnd.getTime() <= brkStart.getTime()) {
+          brkEnd.setDate(brkEnd.getDate() + 1);
+        }
+
+        const overlapStart = brkStart < start ? start : brkStart;
+        const overlapEnd = brkEnd > end ? end : brkEnd;
+
+        const minutes = (overlapEnd.getTime() - overlapStart.getTime()) / 60000;
+        if (minutes > 0) total += minutes;
+        continue;
+      }
+
+      const storedDuration = brk?.durationMinutes;
+      if (storedDuration !== undefined && storedDuration !== null) {
+        const n = Number(storedDuration);
+        if (!Number.isNaN(n) && n > 0) total += n;
+        continue;
+      }
+
+      const brkStart = safeDate(brk.startTime);
+      if (!brkStart) continue;
+      const brkEnd = safeDate(brk.endTime) || now;
+      const minutes = (brkEnd.getTime() - brkStart.getTime()) / 60000;
+      if (minutes > 0) total += minutes;
+    }
+  }
+
+  return total;
+};
+
+const computeTotalBreakMinutesForRange = async ({ workDate, start, end, now }) => {
+  const breaks = await BreakSession.find()
     .select('startTime endTime durationMinutes')
     .lean();
 
@@ -51,21 +113,7 @@ const computeTotalBreakMinutesForRange = async ({ workDate, start, end, now }) =
         .lean()
     : [];
 
-  let total = 0;
-  for (const brk of breaks) {
-    const storedDuration = brk?.durationMinutes;
-    if (storedDuration !== undefined && storedDuration !== null) {
-      const n = Number(storedDuration);
-      if (!Number.isNaN(n) && n > 0) total += n;
-      continue;
-    }
-
-    const brkStart = safeDate(brk.startTime);
-    if (!brkStart) continue;
-    const brkEnd = safeDate(brk.endTime) || now;
-    const minutes = (brkEnd.getTime() - brkStart.getTime()) / 60000;
-    if (minutes > 0) total += minutes;
-  }
+  let total = computeBreakMinutesForWindow({ breaks, windowStart: start, windowEnd: end, now });
 
   for (const ch of changeovers) {
     const n = Number(ch?.durationMinutes);
@@ -135,6 +183,10 @@ export const getDailyEmployeeIdleTime = async (req, res) => {
       checkInRows.map((r) => [String(r._id), r.companyId])
     );
     const checkOutMap = new Map(checkOutRows.map((r) => [String(r._id), r.checkOutTime]));
+
+    const breaks = await BreakSession.find()
+      .select('startTime endTime durationMinutes')
+      .lean();
 
     const [workRows, breakMinutesRaw, employees] = await Promise.all([
       WorkSession.aggregate([
@@ -211,7 +263,13 @@ export const getDailyEmployeeIdleTime = async (req, res) => {
         const presenceMinutes =
           (effectiveCheckOutTime.getTime() - new Date(checkInTime).getTime()) / 60000;
         const workMinutes = workMinutesMap.get(key) || 0;
-        const idleMinutesRaw = presenceMinutes - (workMinutes + breakMinutes);
+        const breakMinutesForEmployee = computeBreakMinutesForWindow({
+          breaks,
+          windowStart: new Date(checkInTime),
+          windowEnd: effectiveCheckOutTime,
+          now
+        });
+        const idleMinutesRaw = presenceMinutes - (workMinutes + breakMinutesForEmployee);
         const idleMinutes = idleMinutesRaw < 0 ? 0 : idleMinutesRaw;
 
         return {
@@ -226,11 +284,11 @@ export const getDailyEmployeeIdleTime = async (req, res) => {
           isCheckedOut: Boolean(rawCheckOutTime),
           presenceMinutes: round2(presenceMinutes),
           workMinutes: round2(workMinutes),
-          breakMinutes: round2(breakMinutes),
+          breakMinutes: round2(breakMinutesForEmployee),
           idleMinutes: round2(idleMinutes),
           presenceHours: round2(presenceMinutes / 60),
           workHours: round2(workMinutes / 60),
-          breakHours: round2(breakMinutes / 60),
+          breakHours: round2(breakMinutesForEmployee / 60),
           idleHours: round2(idleMinutes / 60)
         };
       })
