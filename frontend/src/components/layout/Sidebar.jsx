@@ -12,7 +12,9 @@ import {
   Cpu,
   UserCog,
   Scan,
-  ClockFading
+  ClockFading,
+  Calendar,
+  LineChart
 } from 'lucide-react'
 import { IoTimerOutline } from "react-icons/io5";
 import { useAuth } from '../../hooks/useAuth'
@@ -51,6 +53,11 @@ export const Sidebar = () => {
       to: '/attendance',
       icon: QrCode,
       label: 'Attendance',
+    },
+    {
+      to: '/attendance/planned',
+      icon: Calendar,
+      label: 'Planned Attendance',
     },
     {
       to: '/work-sessions',
@@ -123,6 +130,7 @@ export const Sidebar = () => {
           <NavLink
             key={item.to}
             to={item.to}
+            end={item.to === '/attendance'}
             className={({ isActive }) =>
               `
               flex items-center px-4 py-3 rounded-md transition-colors
