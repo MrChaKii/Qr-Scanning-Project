@@ -36,8 +36,7 @@ export function SetPlannedAttendancePage() {
   const fetchCompanies = async () => {
     try {
       const data = await getCompanies();
-      const manpowerCompanies = data.filter(c => c.employeeTypeAllowed === 'manpower');
-      setCompanies(manpowerCompanies);
+      setCompanies(data);
     } catch (error) {
       console.error('Error fetching companies:', error);
     }
