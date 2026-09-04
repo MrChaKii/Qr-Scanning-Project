@@ -28,7 +28,7 @@ export function PlannedVsActualPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Planned vs Actual Attendance</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Compare the planned manpower against actual checked-in employees.
+              Compare planned attendance against actual checked-in employees by company.
             </p>
           </div>
           <div className="w-48">
@@ -59,7 +59,7 @@ export function PlannedVsActualPage() {
           
           {vsActual.length === 0 && (
             <div className="col-span-full py-8 text-center text-gray-500">
-              No manpower companies found.
+              No companies found.
             </div>
           )}
         </div>
