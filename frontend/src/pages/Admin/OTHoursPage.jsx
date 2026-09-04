@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { Table } from '../../components/ui/Table'
@@ -71,6 +71,7 @@ export const OTHoursPage = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [isReportOpen, setIsReportOpen] = useState(false)
   const [isReportGenerating, setIsReportGenerating] = useState(false)
+  const [search, setSearch] = useState('')
 
   const fetchSummary = async () => {
     setIsLoading(true)
@@ -169,6 +170,17 @@ export const OTHoursPage = () => {
     }
   }
 
+  const filteredSummary = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return summary
+
+    return summary.filter((item) => [
+      item.employee?.employeeId,
+      item.employee?.name,
+      item.company?.companyName,
+    ].some((value) => String(value || '').toLowerCase().includes(query)))
+  }, [search, summary])
+
   const columns = [
     {
       header: 'Employee ID',
@@ -266,12 +278,20 @@ export const OTHoursPage = () => {
             onChange={(e) => setDate(e.target.value)}
             className="w-auto"
           />
+          <Input
+            label="Search employee"
+            type="search"
+            placeholder="Name, ID, or company"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full sm:w-72"
+          />
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
         <Table
-          data={summary}
+          data={filteredSummary}
           columns={columns}
           keyExtractor={(item) => item.id}
           isLoading={isLoading}
