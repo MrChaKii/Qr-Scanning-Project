@@ -2,6 +2,32 @@ import PlannedAttendance from '../models/PlannedAttendance.js';
 import AttendanceLog from '../models/AttendanceLog.js';
 import Company from '../models/Company.js';
 
+const SRI_LANKA_TIME_ZONE = 'Asia/Colombo';
+
+const getSriLankaDateTimeParts = (value) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: SRI_LANKA_TIME_ZONE,
+    hour: '2-digit',
+    hourCycle: 'h23',
+    minute: '2-digit',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(value));
+
+  return Object.fromEntries(parts
+    .filter((part) => part.type !== 'literal')
+    .map((part) => [part.type, Number(part.value)]));
+};
+
+const getSriLankaDayBounds = (date) => {
+  const [year, month, day] = String(date).split('-').map(Number);
+  const sriLankaOffsetMinutes = 5 * 60 + 30;
+  const start = new Date(Date.UTC(year, month - 1, day) - sriLankaOffsetMinutes * 60 * 1000);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, end };
+};
+
 export const setPlannedAttendance = async (req, res) => {
   try {
     const { companyId, date, plannedCount, shift } = req.body;
@@ -54,14 +80,15 @@ export const getPlannedVsActualAttendance = async (req, res) => {
 
     const queryDate = new Date(date);
     queryDate.setHours(0, 0, 0, 0);
+    const { start: sriLankaDayStart, end: sriLankaDayEnd } = getSriLankaDayBounds(date);
     const plannedAttendance = await PlannedAttendance.find({ date: queryDate }).populate('companyId', 'companyName companyId');
     
     // Calculate actual attendance - count only currently checked-in employees (latest scan is IN)
     const latestAttendance = await AttendanceLog.aggregate([
       {
         $match: {
-          workDate: date,
-          scanLocation: 'SECURITY'
+          scanLocation: 'SECURITY',
+          scanTime: { $gte: sriLankaDayStart, $lt: sriLankaDayEnd }
         }
       },
       {
@@ -86,7 +113,7 @@ export const getPlannedVsActualAttendance = async (req, res) => {
     const actualAttendance = latestAttendance
       .filter((row) => row.latestScanType === 'IN')
       .reduce((counts, row) => {
-        const hour = new Date(row.scanTime).getHours();
+        const { hour } = getSriLankaDateTimeParts(row.scanTime);
         const shift = hour >= 7 && hour < 19 ? 'Day' : 'Night';
         const key = `${row.companyId}:${shift}`;
         counts[key] = (counts[key] || 0) + 1;
