@@ -90,7 +90,9 @@ export const getPlannedVsActualAttendance = async (req, res) => {
       }
     ]);
 
-    const companies = await Company.find({ employeeTypeAllowed: 'manpower' });
+    const companies = await Company.find({
+      employeeTypeAllowed: { $in: ['manpower', 'permanent', 'casual'] }
+    });
 
     const result = companies.map(company => {
       const planned = plannedAttendance.find(p => p.companyId && p.companyId._id.toString() === company._id.toString());
