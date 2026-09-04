@@ -15,6 +15,12 @@ const plannedAttendanceSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  shift: {
+    type: String,
+    enum: ['Day', 'Night'],
+    required: true,
+    default: 'Day'
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -25,7 +31,7 @@ const plannedAttendanceSchema = new mongoose.Schema({
   }
 });
 
-// Ensure a single record per company per date
-plannedAttendanceSchema.index({ companyId: 1, date: 1 }, { unique: true });
+// Allow separate Day and Night plans for the same company and date.
+plannedAttendanceSchema.index({ companyId: 1, date: 1, shift: 1 }, { unique: true });
 
 export default mongoose.models.PlannedAttendance || mongoose.model('PlannedAttendance', plannedAttendanceSchema);
