@@ -3,6 +3,7 @@ import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { WorkSessionScanner } from '../../components/features/WorkSessionScanner'
 import { Modal } from '../../components/ui/Modal'
 import { getActiveSessionsByProcess } from '../../services/workSession.service'
+import { getCurrentIdleEmployees } from '../../services/analytics.service'
 import { useNavigate } from 'react-router-dom'
 import { Users, User, Clock, Workflow, RefreshCw } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -14,6 +15,12 @@ const formatTime = (value) => {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+const todayYyyyMmDd = () => {
+  const now = new Date()
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
 export const ProcessScanPage = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -21,6 +28,8 @@ export const ProcessScanPage = () => {
   // Active sessions grouped by process
   const [activeByProcess, setActiveByProcess] = useState({})
   const [isLoadingActive, setIsLoadingActive] = useState(true)
+  const [inTransitEmployees, setInTransitEmployees] = useState([])
+  const [isLoadingInTransit, setIsLoadingInTransit] = useState(true)
 
   // Modal state
   const [checkedInModal, setCheckedInModal] = useState({ open: false, processName: '', employees: [] })
@@ -36,13 +45,32 @@ export const ProcessScanPage = () => {
     }
   }, [])
 
+  const fetchInTransit = useCallback(async () => {
+    if (user?.role !== 'process') {
+      setIsLoadingInTransit(false)
+      return
+    }
+
+    setIsLoadingInTransit(true)
+    try {
+      const data = await getCurrentIdleEmployees(todayYyyyMmDd())
+      setInTransitEmployees(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Failed to fetch in-transit employees:', err)
+      setInTransitEmployees([])
+    } finally {
+      setIsLoadingInTransit(false)
+    }
+  }, [user?.role])
+
   useEffect(() => {
     fetchActive()
-  }, [fetchActive])
+    fetchInTransit()
+  }, [fetchActive, fetchInTransit])
 
   const handleScanSuccess = () => {
-    // Refresh the active counts after a successful scan
     fetchActive()
+    fetchInTransit()
   }
 
   const handleCheckedInClick = (processName) => {
@@ -125,6 +153,64 @@ export const ProcessScanPage = () => {
               </div>
             )}
           </div>
+
+          {isProcessUser && (
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-amber-500" />
+                  <h2 className="text-base font-semibold text-slate-900">Current In-Transit Employees</h2>
+                  {inTransitEmployees.length > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
+                      {inTransitEmployees.length}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={fetchInTransit}
+                  disabled={isLoadingInTransit}
+                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingInTransit ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+              </div>
+
+              {isLoadingInTransit ? (
+                <div className="px-5 py-8 text-center text-slate-400 text-sm animate-pulse">
+                  Loading in-transit employees...
+                </div>
+              ) : inTransitEmployees.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                  <Clock className="w-8 h-8 mb-2 text-slate-300" />
+                  <p className="text-sm">No employees are currently in transit.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {inTransitEmployees.map((employee, index) => (
+                    <div key={employee.employeeId || index} className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-slate-900 truncate">{employee.employeeName}</p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {employee.employeeCode || '—'} · {employee.companyName || '—'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-slate-500 whitespace-nowrap">
+                        <p>Since {formatTime(employee.idleSince)}</p>
+                        <p>{Math.round(Number(employee.idleMinutes) || 0)} min</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
       </div>
