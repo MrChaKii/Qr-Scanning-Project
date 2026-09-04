@@ -19,7 +19,8 @@ export function SetPlannedAttendancePage() {
   const [formData, setFormData] = useState({
     companyId: '',
     date: new Date().toISOString().split('T')[0],
-    plannedCount: ''
+    plannedCount: '',
+    shift: 'Day'
   });
   
   const [loading, setLoading] = useState(false);
@@ -119,6 +120,16 @@ export function SetPlannedAttendancePage() {
                 onChange={(e) => setFormData({ ...formData, plannedCount: e.target.value })}
                 required
               />
+              <Select
+                label="Shift"
+                value={formData.shift}
+                onChange={(e) => setFormData({ ...formData, shift: e.target.value })}
+                options={[
+                  { value: 'Day', label: 'Day' },
+                  { value: 'Night', label: 'Night' },
+                ]}
+                required
+              />
               <Button type="submit" isLoading={loading} className="w-full">
                 Save Plan
               </Button>
@@ -142,6 +153,7 @@ export function SetPlannedAttendancePage() {
               columns={[
                 { header: 'Company', accessor: (row) => row.companyId?.companyName || 'Unknown' },
                 { header: 'Date', accessor: (row) => new Date(row.date).toLocaleDateString() },
+                { header: 'Shift', accessor: (row) => row.shift || '—' },
                 { header: 'Planned Count', accessor: 'plannedCount' }
               ]}
               data={plannedList}

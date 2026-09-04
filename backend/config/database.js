@@ -1,5 +1,6 @@
 import dns from 'node:dns';
 import mongoose from 'mongoose';
+import PlannedAttendance from '../models/PlannedAttendance.js';
 
 const connectDB = async () => {
   try {
@@ -13,6 +14,7 @@ const connectDB = async () => {
     }
 
     await mongoose.connect(process.env.MONGODB_URI);
+    await PlannedAttendance.syncIndexes();
     console.log('MongoDB connected successfully');
   } catch (error) {
     console.error('MongoDB connection error:', error);
