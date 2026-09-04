@@ -119,6 +119,7 @@ export const AttendancePage = () => {
   const [summary, setSummary] = useState([])
   const [companies, setCompanies] = useState([])
   const [selectedCompany, setSelectedCompany] = useState('')
+  const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [nonCheckoutCount, setNonCheckoutCount] = useState(0)
   const [isNonCheckoutLoading, setIsNonCheckoutLoading] = useState(false)
@@ -207,9 +208,19 @@ export const AttendancePage = () => {
   }
 
   const filteredSummary = useMemo(() => {
-    if (!selectedCompany) return summary
-    return summary.filter((item) => item.companyObjectId === selectedCompany)
-  }, [selectedCompany, summary])
+    const query = search.trim().toLowerCase()
+    return summary.filter((item) => {
+      const matchesCompany = selectedCompany
+        ? item.companyObjectId === selectedCompany
+        : true
+      const matchesSearch = query
+        ? [item.employeeId, item.name, item.company, item.status]
+          .some((value) => String(value || '').toLowerCase().includes(query))
+        : true
+
+      return matchesCompany && matchesSearch
+    })
+  }, [search, selectedCompany, summary])
 
   const companyOptions = useMemo(() => (
     (Array.isArray(companies) ? companies : [])
@@ -615,7 +626,7 @@ export const AttendancePage = () => {
               </div>
 
               <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(180px,240px)_minmax(240px,1fr)_auto_minmax(120px,150px)] lg:items-end">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(180px,240px)_minmax(240px,1fr)_minmax(240px,1fr)_auto_minmax(120px,150px)] lg:items-end">
                   <Input
                     label="Filter by date"
                     type="date"
@@ -631,6 +642,16 @@ export const AttendancePage = () => {
                     onChange={(e) => setSelectedCompany(e.target.value)}
                     placeholder="All companies"
                     options={companyOptions}
+                    className="bg-white"
+                    disabled={isEditOpen}
+                  />
+
+                  <Input
+                    label="Search employee"
+                    type="search"
+                    placeholder="Name, ID, company, or status"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
                     className="bg-white"
                     disabled={isEditOpen}
                   />

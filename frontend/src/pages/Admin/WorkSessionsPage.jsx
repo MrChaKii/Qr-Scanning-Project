@@ -94,6 +94,7 @@ export const WorkSessionsPage = () => {
   const [companies, setCompanies] = useState([])
   const [selectedProcess, setSelectedProcess] = useState('')
   const [selectedCompany, setSelectedCompany] = useState('')
+  const [search, setSearch] = useState('')
 
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -167,8 +168,17 @@ export const WorkSessionsPage = () => {
     const matchesCompany = normalizedSelectedCompany
       ? sessionCompanyId === normalizedSelectedCompany
       : true
+    const query = search.trim().toLowerCase()
+    const matchesSearch = query
+      ? [
+        session?.employeeId?.employeeId,
+        session?.employeeId?.name,
+        session?.companyId?.companyName,
+        session?.processName,
+      ].some((value) => String(value || '').toLowerCase().includes(query))
+      : true
 
-    return matchesProcess && matchesCompany
+    return matchesProcess && matchesCompany && matchesSearch
   })
   const filteredEmployeeCount = new Set(
     filteredSessions
@@ -402,7 +412,7 @@ export const WorkSessionsPage = () => {
       </div>
 
       <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 mb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(180px,240px)_minmax(200px,280px)_minmax(240px,1fr)_auto_auto] lg:items-end gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(180px,240px)_minmax(200px,280px)_minmax(240px,1fr)_minmax(240px,1fr)_auto_auto] lg:items-end gap-3">
           <div className="w-full">
             <Input
               label="Filter by date"
@@ -424,6 +434,16 @@ export const WorkSessionsPage = () => {
                   value: p.processName,
                   label: p.processName,
                 }))}
+            />
+          </div>
+
+          <div className="w-full">
+            <Input
+              label="Search employee"
+              type="search"
+              placeholder="Name, ID, company, or process"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
