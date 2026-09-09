@@ -45,7 +45,7 @@ export function PlannedVsActualPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Planned vs Actual Attendance</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Compare planned attendance against actual checked-in employees by company.
+              Day: 7:00 AM - 12:45 PM. Later check-ins count toward the Night shift.
             </p>
           </div>
           <div className="w-48">
@@ -67,14 +67,19 @@ export function PlannedVsActualPage() {
 
                   return (
                     <div key={shift} className="rounded-lg border border-slate-200 p-3">
-                      <p className="text-sm font-semibold text-slate-700">{shift} Shift</p>
+                      <div className="flex flex-wrap items-baseline justify-between gap-1">
+                        <p className="text-sm font-semibold text-slate-700">{shift} Shift</p>
+                        <p className="text-xs text-slate-500">
+                          {shift === 'Day' ? '7:00 AM - 12:45 PM' : 'After 12:45 PM'}
+                        </p>
+                      </div>
                       <div className="mt-3 grid grid-cols-2 gap-3">
                         <div className="text-center p-3 bg-blue-50 rounded-lg">
                           <p className="text-sm text-blue-600 font-medium">Planned</p>
                           <p className="text-2xl font-bold text-blue-900">{plan.plannedCount || 0}</p>
                         </div>
                         <div className="text-center p-3 bg-green-50 rounded-lg">
-                          <p className="text-sm text-green-600 font-medium">Actual</p>
+                          <p className="text-sm text-green-600 font-medium">Attended</p>
                           <p className="text-2xl font-bold text-green-900">{plan.actualCount || 0}</p>
                         </div>
                       </div>
