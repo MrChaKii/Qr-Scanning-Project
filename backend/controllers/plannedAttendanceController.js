@@ -103,20 +103,23 @@ export const getPlannedVsActualAttendance = async (req, res) => {
       scanLocation: 'SECURITY',
       scanType: 'IN',
       scanTime: { $gte: shiftPeriodStart, $lt: shiftPeriodEnd },
-    }).select('employeeId companyId scanTime');
+    })
+      .sort({ scanTime: 1, _id: 1 })
+      .select('employeeId companyId scanTime');
 
-    const countedEmployees = new Set();
+    const countedEmployeeIds = new Set();
     const actualAttendance = shiftCheckIns.reduce((counts, checkIn) => {
-      const shift = getPlannedAttendanceShift(checkIn.scanTime);
       const companyId = String(checkIn.companyId);
       const employeeId = String(checkIn.employeeId);
-      const attendanceKey = `${companyId}:${shift}:${employeeId}`;
 
-      if (countedEmployees.has(attendanceKey)) {
+      // The first IN assigns the employee to one planning shift. Re-entry
+      // scans later in the same attendance period must not count them again.
+      if (countedEmployeeIds.has(employeeId)) {
         return counts;
       }
 
-      countedEmployees.add(attendanceKey);
+      countedEmployeeIds.add(employeeId);
+      const shift = getPlannedAttendanceShift(checkIn.scanTime);
       const companyShiftKey = `${companyId}:${shift}`;
       counts[companyShiftKey] = (counts[companyShiftKey] || 0) + 1;
       return counts;
