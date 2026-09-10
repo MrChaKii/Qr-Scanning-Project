@@ -3,6 +3,8 @@ import AttendanceLog from '../models/AttendanceLog.js';
 import Company from '../models/Company.js';
 
 const SRI_LANKA_TIME_ZONE = 'Asia/Colombo';
+const DAY_SHIFT_START_MINUTES = 7 * 60;
+const DAY_SHIFT_END_MINUTES = 12 * 60 + 45;
 
 const getSriLankaDateTimeParts = (value) => {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -20,12 +22,24 @@ const getSriLankaDateTimeParts = (value) => {
     .map((part) => [part.type, Number(part.value)]));
 };
 
-const getSriLankaDayBounds = (date) => {
+const getPlannedAttendanceShiftBounds = (date) => {
   const [year, month, day] = String(date).split('-').map(Number);
   const sriLankaOffsetMinutes = 5 * 60 + 30;
-  const start = new Date(Date.UTC(year, month - 1, day) - sriLankaOffsetMinutes * 60 * 1000);
+  const start = new Date(
+    Date.UTC(year, month - 1, day, 7) - sriLankaOffsetMinutes * 60 * 1000
+  );
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { start, end };
+};
+
+const getPlannedAttendanceShift = (scanTime) => {
+  const { hour, minute } = getSriLankaDateTimeParts(scanTime);
+  const minutesAfterMidnight = hour * 60 + minute;
+
+  return minutesAfterMidnight >= DAY_SHIFT_START_MINUTES
+    && minutesAfterMidnight <= DAY_SHIFT_END_MINUTES
+    ? 'Day'
+    : 'Night';
 };
 
 export const setPlannedAttendance = async (req, res) => {
@@ -80,45 +94,36 @@ export const getPlannedVsActualAttendance = async (req, res) => {
 
     const queryDate = new Date(date);
     queryDate.setHours(0, 0, 0, 0);
-    const { start: sriLankaDayStart, end: sriLankaDayEnd } = getSriLankaDayBounds(date);
+    const { start: shiftPeriodStart, end: shiftPeriodEnd } = getPlannedAttendanceShiftBounds(date);
     const plannedAttendance = await PlannedAttendance.find({ date: queryDate }).populate('companyId', 'companyName companyId');
-    
-    // Calculate actual attendance - count only currently checked-in employees (latest scan is IN)
-    const latestAttendance = await AttendanceLog.aggregate([
-      {
-        $match: {
-          scanLocation: 'SECURITY',
-          scanTime: { $gte: sriLankaDayStart, $lt: sriLankaDayEnd }
-        }
-      },
-      {
-        $sort: { scanTime: -1 }
-      },
-      {
-        $group: {
-          _id: '$employeeId',
-          latestScanType: { $first: '$scanType' },
-          companyId: { $first: '$companyId' },
-          scanTime: { $first: '$scanTime' }
-        }
-      },
-      {
-        $match: {
-          latestScanType: 'IN'
-        }
-      },
-    ]);
 
-    // Assign an employee to the shift based on the local time of their security check-in.
-    const actualAttendance = latestAttendance
-      .filter((row) => row.latestScanType === 'IN')
-      .reduce((counts, row) => {
-        const { hour } = getSriLankaDateTimeParts(row.scanTime);
-        const shift = hour >= 7 && hour < 19 ? 'Day' : 'Night';
-        const key = `${row.companyId}:${shift}`;
-        counts[key] = (counts[key] || 0) + 1;
+    // Count each employee once for the shift where they checked in. A later
+    // checkout must not reduce the Actual Attended total for that shift.
+    const shiftCheckIns = await AttendanceLog.find({
+      scanLocation: 'SECURITY',
+      scanType: 'IN',
+      scanTime: { $gte: shiftPeriodStart, $lt: shiftPeriodEnd },
+    })
+      .sort({ scanTime: 1, _id: 1 })
+      .select('employeeId companyId scanTime');
+
+    const countedEmployeeIds = new Set();
+    const actualAttendance = shiftCheckIns.reduce((counts, checkIn) => {
+      const companyId = String(checkIn.companyId);
+      const employeeId = String(checkIn.employeeId);
+
+      // The first IN assigns the employee to one planning shift. Re-entry
+      // scans later in the same attendance period must not count them again.
+      if (countedEmployeeIds.has(employeeId)) {
         return counts;
-      }, {});
+      }
+
+      countedEmployeeIds.add(employeeId);
+      const shift = getPlannedAttendanceShift(checkIn.scanTime);
+      const companyShiftKey = `${companyId}:${shift}`;
+      counts[companyShiftKey] = (counts[companyShiftKey] || 0) + 1;
+      return counts;
+    }, {});
 
     const companies = await Company.find({
       employeeTypeAllowed: { $in: ['manpower', 'permanent', 'casual'] }

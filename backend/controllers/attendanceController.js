@@ -11,6 +11,7 @@ const AUTO_CHECKOUT_HOURS_BY_TYPE = {
   permanent: 25,
   casual: 25,
 };
+const MIN_AUTO_CHECKOUT_HOURS = Math.min(...Object.values(AUTO_CHECKOUT_HOURS_BY_TYPE));
 const MANUAL_ATTENDANCE_WINDOW_HOURS_BY_TYPE = {
   manpower: 12,
   permanent: 24,
@@ -307,6 +308,59 @@ const applyAutoCheckoutsBeforeEmployeeScan = async ({ employeeId, companyId, sca
 
   let createdCount = 0;
 
+  for (const inLog of inLogs) {
+    if (await applyAutoCheckoutForOpenCheckIn(inLog, now)) {
+      createdCount += 1;
+    }
+  }
+
+  return createdCount;
+};
+
+export const applyDueAutoCheckouts = async (now = new Date()) => {
+  const earliestCandidateTime = new Date(
+    now.getTime() - MIN_AUTO_CHECKOUT_HOURS * 60 * 60 * 1000
+  );
+
+  const latestOpenCheckIns = await AttendanceLog.aggregate([
+    {
+      $match: {
+        scanLocation: 'SECURITY',
+        scanTime: { $lte: now },
+      },
+    },
+    { $sort: { scanTime: -1, _id: -1 } },
+    {
+      $group: {
+        _id: {
+          employeeId: '$employeeId',
+          companyId: '$companyId',
+          scanLocation: '$scanLocation',
+        },
+        latestLogId: { $first: '$_id' },
+        latestScanType: { $first: '$scanType' },
+        latestScanTime: { $first: '$scanTime' },
+      },
+    },
+    {
+      $match: {
+        latestScanType: 'IN',
+        latestScanTime: { $lte: earliestCandidateTime },
+      },
+    },
+  ]);
+
+  if (latestOpenCheckIns.length === 0) {
+    return 0;
+  }
+
+  const inLogs = await AttendanceLog.find({
+    _id: { $in: latestOpenCheckIns.map(({ latestLogId }) => latestLogId) },
+  })
+    .sort({ scanTime: 1 })
+    .populate('employeeId companyId');
+
+  let createdCount = 0;
   for (const inLog of inLogs) {
     if (await applyAutoCheckoutForOpenCheckIn(inLog, now)) {
       createdCount += 1;
