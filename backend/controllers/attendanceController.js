@@ -134,6 +134,26 @@ const getActiveAttendanceWindowForCheckIn = async ({ employeeId, companyId, scan
     return null;
   }
 
+  // Check if there is a gap > 6 hours from the last checkout in this window
+  const lastOutLog = await AttendanceLog.findOne({
+    employeeId,
+    companyId,
+    scanLocation,
+    scanType: 'OUT',
+    scanTime: {
+      $gt: activeWindow.firstInLog.scanTime,
+      $lt: now,
+    },
+  }).sort({ scanTime: -1 });
+
+  if (lastOutLog) {
+    const gapHours = (now.getTime() - lastOutLog.scanTime.getTime()) / (1000 * 60 * 60);
+    if (gapHours > 6) {
+      // The gap since last checkout is > 6 hours, so break the window and start a new shift.
+      return null;
+    }
+  }
+
   return activeWindow;
 };
 
