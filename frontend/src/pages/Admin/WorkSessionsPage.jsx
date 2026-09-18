@@ -330,7 +330,7 @@ export const WorkSessionsPage = () => {
       header: 'Employee',
       accessor: (item) =>
         item.employeeId
-          ? (item.employeeId.employeeId || item.employeeId.name || item.employeeId._id || 'Unknown')
+          ? (item.employeeId.name || item.employeeId.employeeId || item.employeeId._id || 'Unknown')
           : 'Unknown',
     },
     {
@@ -362,10 +362,14 @@ export const WorkSessionsPage = () => {
       ),
     },
     {
-      header: 'Duration (min)',
+      header: 'Duration (hrs)',
       accessor: (item) => {
         const duration = getDurationMinutes(item, currentTime)
-        return duration === null ? '—' : duration
+        if (duration === null) return '—'
+
+        const hours = Math.floor(duration / 60)
+        const minutes = String(duration % 60).padStart(2, '0')
+        return `${hours}.${minutes}`
       },
     },
     {
