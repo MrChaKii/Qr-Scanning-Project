@@ -295,6 +295,114 @@ const getEmployeeDisplayName = (row) => (
   'Unknown Employee'
 )
 
+const getEmployeeKeys = (value) => {
+  const employee = value?.employeeId
+  const qrEmployee = value?.qrId?.employeeId
+
+  return [
+    value?.employeeCode,
+    employee?._id,
+    employee?.id,
+    employee?.employeeId,
+    typeof employee === 'string' ? employee : null,
+    qrEmployee?._id,
+    qrEmployee?.id,
+    qrEmployee?.employeeId,
+    typeof qrEmployee === 'string' ? qrEmployee : null,
+  ]
+    .filter(Boolean)
+    .map(String)
+}
+
+const mergeTimeIntervals = (intervals) => {
+  const sorted = intervals
+    .filter(({ start, end }) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+    .sort((a, b) => a.start - b.start)
+
+  return sorted.reduce((merged, interval) => {
+    const previous = merged[merged.length - 1]
+
+    if (!previous || interval.start > previous.end) {
+      merged.push({ ...interval })
+    } else {
+      previous.end = Math.max(previous.end, interval.end)
+    }
+
+    return merged
+  }, [])
+}
+
+const reconcileDailyIdleRows = (idleRows, workSessions) => {
+  const safeRows = Array.isArray(idleRows) ? idleRows : []
+  const safeSessions = Array.isArray(workSessions) ? workSessions : []
+  const sessionsByEmployee = new Map()
+  const nowTime = Date.now()
+
+  safeSessions.forEach((session) => {
+    if (!session?.startTime) return
+
+    getEmployeeKeys(session).forEach((key) => {
+      const employeeSessions = sessionsByEmployee.get(key) || new Map()
+      const sessionKey = String(session?._id || session?.id || `${session.startTime}-${session.processName || ''}`)
+      employeeSessions.set(sessionKey, session)
+      sessionsByEmployee.set(key, employeeSessions)
+    })
+  })
+
+  return safeRows.map((row) => {
+    const employeeSessions = new Map()
+
+    getEmployeeKeys(row).forEach((key) => {
+      const matchedSessions = sessionsByEmployee.get(key)
+      if (!matchedSessions) return
+
+      matchedSessions.forEach((session, sessionKey) => {
+        employeeSessions.set(sessionKey, session)
+      })
+    })
+
+    if (employeeSessions.size === 0) return row
+
+    const checkInTime = new Date(row?.checkInTime).getTime()
+    const checkOutTime = row?.checkOutTime
+      ? new Date(row.checkOutTime).getTime()
+      : null
+    const presenceMinutes = Math.max(Number(row?.presenceMinutes) || 0, 0)
+    const attendanceEnd = Number.isFinite(checkOutTime)
+      ? checkOutTime
+      : Number.isFinite(checkInTime) && presenceMinutes > 0
+        ? checkInTime + (presenceMinutes * 60000)
+        : nowTime
+
+    const workIntervals = Array.from(employeeSessions.values()).map((session) => {
+      const sessionStart = new Date(session.startTime).getTime()
+      const sessionEndValue = session?.endTime
+        ? new Date(session.endTime).getTime()
+        : nowTime
+
+      return {
+        start: Number.isFinite(checkInTime) ? Math.max(sessionStart, checkInTime) : sessionStart,
+        end: Math.min(sessionEndValue, attendanceEnd),
+      }
+    })
+
+    const workMinutes = mergeTimeIntervals(workIntervals).reduce(
+      (total, interval) => total + ((interval.end - interval.start) / 60000),
+      0
+    )
+    const breakMinutes = Math.max(Number(row?.breakMinutes) || 0, 0)
+    const idleMinutes = Math.max(presenceMinutes - workMinutes - breakMinutes, 0)
+
+    return {
+      ...row,
+      workMinutes,
+      idleMinutes,
+      workHours: workMinutes / 60,
+      idleHours: idleMinutes / 60,
+    }
+  })
+}
+
 const getEmployeeMetaLabel = (row) => {
   const details = [
     row?.employeeCode,
@@ -309,7 +417,7 @@ const getLargestByMinutes = (rows, key) => {
   return rows.reduce((largest, row) => {
     const rowMinutes = Number(row?.[key]) || 0
     const largestMinutes = Number(largest?.[key]) || 0
-    return rowMinutes > largestMinutes ? row : largest
+    return largest === null || rowMinutes > largestMinutes ? row : largest
   }, null)
 }
 
@@ -2470,11 +2578,14 @@ export const PublicDashboardPage = () => {
   const loadDailyIdleHighlights = async (shouldUpdate = () => true, showLoader = true) => {
     if (showLoader) setIsIdleHighlightsLoading(true)
     try {
-      const rows = await getPublicEmployeeDailyIdleTime(idleHighlightsDate)
+      const [rows, workSessions] = await Promise.all([
+        getPublicEmployeeDailyIdleTime(idleHighlightsDate),
+        getWorkSessions({ date: idleHighlightsDate }),
+      ])
 
       if (!shouldUpdate()) return
 
-      setDailyIdleRows(Array.isArray(rows) ? rows : [])
+      setDailyIdleRows(reconcileDailyIdleRows(rows, workSessions))
     } catch (e) {
       if (!shouldUpdate()) return
       setDailyIdleRows([])
